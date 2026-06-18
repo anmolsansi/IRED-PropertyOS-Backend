@@ -1,0 +1,16 @@
+node_modules
+dist
+build
+.git
+.gitignore
+.env
+.env.local
+.env.*.local
+*.md
+docker-compose.yml
+docker-compose.override.yml
+coverage
+.nyc_output
+.vscode
+.idea
+*.log
