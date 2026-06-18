@@ -29,6 +29,7 @@ import { ProposalsModule } from './modules/proposals/proposals.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { SiteVisitsModule } from './modules/site-visits/site-visits.module';
 import { DealsModule } from './modules/deals/deals.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -72,6 +73,7 @@ import { DealsModule } from './modules/deals/deals.module';
     TasksModule,
     SiteVisitsModule,
     DealsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}
