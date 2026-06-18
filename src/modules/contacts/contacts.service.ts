@@ -1,5 +1,23 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  createChangeRequest,
+  diffFields,
+} from '../change-requests/change-request.helper';
+import { EntityType } from '../../generated/prisma';
+
+const EDITABLE_FIELDS = [
+  'fullName',
+  'mobileNumber',
+  'alternateMobileNumber',
+  'whatsappNumber',
+  'email',
+  'preferredCommunicationMethod',
+  'availabilityHours',
+  'contactRoleId',
+  'verificationStatusId',
+  'notes',
+];
 
 @Injectable()
 export class ContactsService {
@@ -28,13 +46,44 @@ export class ContactsService {
   }
 
   async update(id: string, data: any, userId: string, isAdmin: boolean) {
+    const contact = await this.prisma.contact.findUnique({ where: { id } });
+    if (!contact) throw new NotFoundException('Contact not found');
+
     if (isAdmin) {
       return this.prisma.contact.update({
         where: { id },
         data,
       });
     }
-    return { message: 'Change request created', entityId: id };
+
+    const changes = diffFields(contact as any, data, EDITABLE_FIELDS);
+
+    const changeRequest = await createChangeRequest(this.prisma, {
+      entityType: EntityType.contact,
+      entityId: id,
+      requestedBy: userId,
+      workerNote: data.workerNote,
+      fields: changes,
+    });
+
+    if (!changeRequest) {
+      return { message: 'No changes detected', entityId: id };
+    }
+
+    await this.prisma.auditEvent.create({
+      data: {
+        actorUserId: userId,
+        eventType: 'change_request_created',
+        entityType: 'contact',
+        entityId: id,
+        metadataJson: {
+          changeRequestId: changeRequest.id,
+          fieldsChanged: changes.map((c) => c.fieldName),
+        },
+      },
+    });
+
+    return changeRequest;
   }
 
   async softDelete(id: string) {
@@ -52,7 +101,6 @@ export class ContactsService {
   }
 
   async logView(id: string, userId: string) {
-    // Log sensitive contact viewing for audit
     await this.prisma.auditEvent.create({
       data: {
         actorUserId: userId,
