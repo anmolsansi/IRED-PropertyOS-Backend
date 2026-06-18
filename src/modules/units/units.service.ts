@@ -1,5 +1,39 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  createChangeRequest,
+  diffFields,
+} from '../change-requests/change-request.helper';
+import { EntityType } from '../../generated/prisma';
+
+const EDITABLE_FIELDS = [
+  'unitNumber',
+  'propertyTypeId',
+  'furnishingStatusId',
+  'availabilityStatusId',
+  'carpetArea',
+  'builtUpArea',
+  'superBuiltUpArea',
+  'chargeableArea',
+  'monthlyRent',
+  'rentPerSqftMonth',
+  'camChargesPerSqftMonth',
+  'maintenanceCharges',
+  'securityDeposit',
+  'lockInPeriodMonths',
+  'leaseTermMonths',
+  'escalationPercentage',
+  'escalationFrequency',
+  'parkingCharges',
+  'powerBackupCharges',
+  'gstApplicable',
+  'brokerageCommission',
+  'availabilityDate',
+  'possessionDate',
+  'negotiable',
+  'assignedWorkerId',
+  'notes',
+];
 
 @Injectable()
 export class UnitsService {
@@ -90,13 +124,44 @@ export class UnitsService {
   }
 
   async update(id: string, data: any, userId: string, isAdmin: boolean) {
+    const unit = await this.prisma.unit.findUnique({ where: { id } });
+    if (!unit) throw new NotFoundException('Unit not found');
+
     if (isAdmin) {
       return this.prisma.unit.update({
         where: { id },
         data: { ...data, updatedBy: userId },
       });
     }
-    return { message: 'Change request created', entityId: id };
+
+    const changes = diffFields(unit as any, data, EDITABLE_FIELDS);
+
+    const changeRequest = await createChangeRequest(this.prisma, {
+      entityType: EntityType.unit,
+      entityId: id,
+      requestedBy: userId,
+      workerNote: data.workerNote,
+      fields: changes,
+    });
+
+    if (!changeRequest) {
+      return { message: 'No changes detected', entityId: id };
+    }
+
+    await this.prisma.auditEvent.create({
+      data: {
+        actorUserId: userId,
+        eventType: 'change_request_created',
+        entityType: 'unit',
+        entityId: id,
+        metadataJson: {
+          changeRequestId: changeRequest.id,
+          fieldsChanged: changes.map((c) => c.fieldName),
+        },
+      },
+    });
+
+    return changeRequest;
   }
 
   async softDelete(id: string) {

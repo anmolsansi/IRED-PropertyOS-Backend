@@ -1,5 +1,40 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  createChangeRequest,
+  diffFields,
+} from '../change-requests/change-request.helper';
+import { EntityType } from '../../generated/prisma';
+
+const EDITABLE_FIELDS = [
+  'name',
+  'propertyTypeId',
+  'stateId',
+  'cityId',
+  'zoneId',
+  'localityId',
+  'microMarketId',
+  'fullAddress',
+  'landmark',
+  'pincode',
+  'googleMapsUrl',
+  'latitude',
+  'longitude',
+  'totalFloors',
+  'totalUnits',
+  'totalBuildingArea',
+  'availabilityStatusId',
+  'sourceId',
+  'parkingDetails',
+  'liftDetails',
+  'powerBackupDetails',
+  'fireSafetyDetails',
+  'waterAvailabilityDetails',
+  'roadWidth',
+  'frontage',
+  'nearbyTransportDetails',
+  'notes',
+];
 
 @Injectable()
 export class BuildingsService {
@@ -90,7 +125,6 @@ export class BuildingsService {
   }
 
   async create(data: any, userId: string) {
-    // TODO: Implement duplicate detection and validation
     return this.prisma.building.create({
       data: {
         ...data,
@@ -101,6 +135,9 @@ export class BuildingsService {
   }
 
   async update(id: string, data: any, userId: string, isAdmin: boolean) {
+    const building = await this.prisma.building.findUnique({ where: { id } });
+    if (!building) throw new NotFoundException('Building not found');
+
     if (isAdmin) {
       return this.prisma.building.update({
         where: { id },
@@ -108,9 +145,34 @@ export class BuildingsService {
       });
     }
 
-    // Worker edit creates a Change Request
-    // TODO: Implement change request creation
-    return { message: 'Change request created', entityId: id };
+    const changes = diffFields(building as any, data, EDITABLE_FIELDS);
+
+    const changeRequest = await createChangeRequest(this.prisma, {
+      entityType: EntityType.building,
+      entityId: id,
+      requestedBy: userId,
+      workerNote: data.workerNote,
+      fields: changes,
+    });
+
+    if (!changeRequest) {
+      return { message: 'No changes detected', entityId: id };
+    }
+
+    await this.prisma.auditEvent.create({
+      data: {
+        actorUserId: userId,
+        eventType: 'change_request_created',
+        entityType: 'building',
+        entityId: id,
+        metadataJson: {
+          changeRequestId: changeRequest.id,
+          fieldsChanged: changes.map((c) => c.fieldName),
+        },
+      },
+    });
+
+    return changeRequest;
   }
 
   async softDelete(id: string) {
