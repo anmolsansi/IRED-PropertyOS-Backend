@@ -27,8 +27,12 @@ export class DealsController {
     @Query('limit') limit?: number,
     @Query('status') status?: string,
     @Query('assignedTo') assignedTo?: string,
+    @Query('clientId') clientId?: string,
+    @Query('buildingId') buildingId?: string,
   ) {
-    return this.dealsService.findAll({ page, limit, status, assignedTo });
+    return this.dealsService.findAll({
+      page, limit, status, assignedTo, clientId, buildingId,
+    });
   }
 
   @Get(':id')
@@ -45,7 +49,35 @@ export class DealsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a deal' })
-  async update(@Param('id') id: string, @Body() body: any) {
-    return this.dealsService.update(id, body);
+  async update(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.dealsService.update(id, body, userId);
+  }
+
+  @Post(':id/commissions')
+  @ApiOperation({ summary: 'Add commission to a deal' })
+  async addCommission(
+    @Param('id') id: string,
+    @Body() body: { amount: number; rate?: number },
+  ) {
+    return this.dealsService.addCommission(id, body);
+  }
+
+  @Post(':id/invoices')
+  @ApiOperation({ summary: 'Add invoice to a deal' })
+  async addInvoice(
+    @Param('id') id: string,
+    @Body() body: { amount: number; dueDate?: string },
+  ) {
+    return this.dealsService.addInvoice(id, body);
+  }
+
+  @Patch('invoices/:invoiceId/pay')
+  @ApiOperation({ summary: 'Mark invoice as paid' })
+  async markInvoicePaid(@Param('invoiceId') invoiceId: string) {
+    return this.dealsService.markInvoicePaid(invoiceId);
   }
 }

@@ -5,8 +5,12 @@ import {
   Param,
   Body,
   UseGuards,
+  UploadedFile,
+  UseInterceptors,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiConsumes } from '@nestjs/swagger';
 import { ImportsService } from './imports.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
@@ -33,9 +37,26 @@ export class ImportsController {
   }
 
   @Post('upload')
-  @ApiOperation({ summary: 'Upload import file' })
-  async upload(@Body() body: any, @CurrentUser('id') userId: string) {
-    return this.importsService.upload(body, userId);
+  @ApiOperation({ summary: 'Upload and parse import file' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(FileInterceptor('file'))
+  async upload(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('entityType') entityType: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    if (!file) throw new BadRequestException('No file uploaded');
+
+    const rows = this.parseCsvFile(file.buffer.toString());
+    return this.importsService.upload(
+      {
+        fileName: file.originalname,
+        fileType: file.mimetype,
+        entityType,
+        rows,
+      },
+      userId,
+    );
   }
 
   @Post(':id/map-columns')
@@ -60,5 +81,24 @@ export class ImportsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.importsService.confirm(id, userId);
+  }
+
+  private parseCsvFile(content: string): { rowNumber: number; data: Record<string, string> }[] {
+    const lines = content.split('\n').filter((l) => l.trim());
+    if (lines.length < 2) return [];
+
+    const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
+    const rows: { rowNumber: number; data: Record<string, string> }[] = [];
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(',').map((v) => v.trim().replace(/"/g, ''));
+      const data: Record<string, string> = {};
+      headers.forEach((header, idx) => {
+        data[header] = values[idx] || '';
+      });
+      rows.push({ rowNumber: i, data });
+    }
+
+    return rows;
   }
 }
