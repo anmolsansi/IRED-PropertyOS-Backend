@@ -5,6 +5,7 @@ import { AppConfigModule } from './config/config.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { SharedModule } from './shared/shared.module';
 import { HealthModule } from './health/health.module';
+import { MailModule } from './modules/email/mail.module';
 
 // V1 Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -47,6 +48,7 @@ import { DealsModule } from './modules/deals/deals.module';
     PrismaModule,
     SharedModule,
     HealthModule,
+    MailModule,
 
     // V1
     AuthModule,
