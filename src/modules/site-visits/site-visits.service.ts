@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SiteVisitStatus } from '../../generated/prisma';
 
 @Injectable()
 export class SiteVisitsService {
@@ -10,12 +11,16 @@ export class SiteVisitsService {
     limit?: number;
     scheduledDate?: string;
     assignedTo?: string;
+    status?: string;
+    clientId?: string;
   }) {
     const { page = 1, limit = 20, ...filters } = query;
     const skip = (page - 1) * limit;
 
-    const where = {
+    const where: any = {
       ...(filters.assignedTo && { assignedTo: filters.assignedTo }),
+      ...(filters.status && { status: filters.status as SiteVisitStatus }),
+      ...(filters.clientId && { clientId: filters.clientId }),
       ...(filters.scheduledDate && {
         scheduledAt: {
           gte: new Date(filters.scheduledDate),
@@ -31,15 +36,32 @@ export class SiteVisitsService {
         take: limit,
         orderBy: { scheduledAt: 'asc' },
         include: {
-          assignee: true,
+          assignee: { select: { id: true, fullName: true, email: true } },
           client: true,
-          building: true,
+          building: { select: { id: true, name: true, buildingCode: true } },
         },
       }),
       this.prisma.siteVisit.count({ where }),
     ]);
 
-    return { data, meta: { total, page, limit, totalPages: Math.ceil(total / limit) } };
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async findOne(id: string) {
+    const siteVisit = await this.prisma.siteVisit.findUnique({
+      where: { id },
+      include: {
+        assignee: { select: { id: true, fullName: true, email: true } },
+        creator: { select: { id: true, fullName: true, email: true } },
+        client: true,
+        building: true,
+      },
+    });
+    if (!siteVisit) throw new NotFoundException('Site visit not found');
+    return siteVisit;
   }
 
   async create(data: any, userId: string) {
@@ -49,6 +71,33 @@ export class SiteVisitsService {
   }
 
   async update(id: string, data: any) {
+    const siteVisit = await this.prisma.siteVisit.findUnique({ where: { id } });
+    if (!siteVisit) throw new NotFoundException('Site visit not found');
+
+    if (data.status) {
+      const validTransitions: Record<string, string[]> = {
+        scheduled: ['confirmed', 'cancelled'],
+        confirmed: ['completed', 'no_show', 'cancelled'],
+        completed: [],
+        cancelled: [],
+        no_show: [],
+      };
+
+      if (!validTransitions[siteVisit.status]?.includes(data.status)) {
+        throw new BadRequestException(
+          `Invalid status transition from ${siteVisit.status} to ${data.status}`,
+        );
+      }
+    }
+
     return this.prisma.siteVisit.update({ where: { id }, data });
+  }
+
+  async cancel(id: string) {
+    return this.update(id, { status: 'cancelled' });
+  }
+
+  async complete(id: string, notes?: string) {
+    return this.update(id, { status: 'completed', notes });
   }
 }

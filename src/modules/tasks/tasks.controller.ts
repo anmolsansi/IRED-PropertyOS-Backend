@@ -27,8 +27,19 @@ export class TasksController {
     @Query('limit') limit?: number,
     @Query('assignedTo') assignedTo?: string,
     @Query('status') status?: string,
+    @Query('type') type?: string,
+    @Query('buildingId') buildingId?: string,
+    @Query('clientId') clientId?: string,
   ) {
-    return this.tasksService.findAll({ page, limit, assignedTo, status });
+    return this.tasksService.findAll({
+      page, limit, assignedTo, status, type, buildingId, clientId,
+    });
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get task by ID' })
+  async findOne(@Param('id') id: string) {
+    return this.tasksService.findOne(id);
   }
 
   @Post()
@@ -41,5 +52,30 @@ export class TasksController {
   @ApiOperation({ summary: 'Update a task' })
   async update(@Param('id') id: string, @Body() body: any) {
     return this.tasksService.update(id, body);
+  }
+
+  @Post(':id/follow-ups')
+  @ApiOperation({ summary: 'Add follow-up to a task' })
+  async addFollowUp(
+    @Param('id') id: string,
+    @Body() body: any,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.tasksService.addFollowUp(id, body, userId);
+  }
+
+  @Get(':id/follow-ups')
+  @ApiOperation({ summary: 'List follow-ups for a task' })
+  async getFollowUps(@Param('id') id: string) {
+    return this.tasksService.getFollowUps(id);
+  }
+
+  @Patch('follow-ups/:followUpId')
+  @ApiOperation({ summary: 'Update a follow-up' })
+  async updateFollowUp(
+    @Param('followUpId') followUpId: string,
+    @Body() body: any,
+  ) {
+    return this.tasksService.updateFollowUp(followUpId, body);
   }
 }

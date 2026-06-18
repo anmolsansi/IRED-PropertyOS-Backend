@@ -27,13 +27,18 @@ export class SiteVisitsController {
     @Query('limit') limit?: number,
     @Query('scheduledDate') scheduledDate?: string,
     @Query('assignedTo') assignedTo?: string,
+    @Query('status') status?: string,
+    @Query('clientId') clientId?: string,
   ) {
     return this.siteVisitsService.findAll({
-      page,
-      limit,
-      scheduledDate,
-      assignedTo,
+      page, limit, scheduledDate, assignedTo, status, clientId,
     });
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get site visit by ID' })
+  async findOne(@Param('id') id: string) {
+    return this.siteVisitsService.findOne(id);
   }
 
   @Post()
@@ -46,5 +51,20 @@ export class SiteVisitsController {
   @ApiOperation({ summary: 'Update a site visit' })
   async update(@Param('id') id: string, @Body() body: any) {
     return this.siteVisitsService.update(id, body);
+  }
+
+  @Post(':id/complete')
+  @ApiOperation({ summary: 'Mark site visit as completed' })
+  async complete(
+    @Param('id') id: string,
+    @Body() body: { notes?: string },
+  ) {
+    return this.siteVisitsService.complete(id, body.notes);
+  }
+
+  @Post(':id/cancel')
+  @ApiOperation({ summary: 'Cancel a site visit' })
+  async cancel(@Param('id') id: string) {
+    return this.siteVisitsService.cancel(id);
   }
 }
