@@ -8,7 +8,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
@@ -25,6 +25,17 @@ export class NotificationsController {
   @Get('stats')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get queue stats' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification queue statistics',
+    schema: {
+      example: {
+        email: { waiting: 5, active: 2, completed: 120, failed: 3 },
+        sms: { waiting: 0, active: 0, completed: 45, failed: 1 },
+        push: { waiting: 1, active: 0, completed: 89, failed: 0 },
+      },
+    },
+  })
   async getStats() {
     return this.notificationsService.getQueueStats();
   }

@@ -5,7 +5,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
@@ -23,6 +23,20 @@ export class DashboardController {
   @Get('admin')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Get admin dashboard metrics' })
+  @ApiResponse({
+    status: 200,
+    description: 'Admin dashboard data',
+    schema: {
+      example: {
+        totalBuildings: 45,
+        totalUnits: 1200,
+        totalClients: 320,
+        activeDeals: 67,
+        pendingTasks: 23,
+        recentActivity: [],
+      },
+    },
+  })
   async getAdminDashboard() {
     return this.dashboardService.getAdminDashboard();
   }

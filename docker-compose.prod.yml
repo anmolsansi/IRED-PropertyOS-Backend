@@ -1,0 +1,123 @@
+version: '3.8'
+
+services:
+  # ─── Nginx Reverse Proxy ──────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: propertyos-nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+    networks:
+      - propertyos-net
+
+  # ─── Backend API ──────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: propertyos-backend
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://propertyos:propertyos@postgres:5432/propertyos
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_EXPIRY: ${JWT_EXPIRY:-15m}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
+      SMS_PROVIDER: ${SMS_PROVIDER:-console}
+      SMS_API_KEY: ${SMS_API_KEY:-}
+      SMS_API_SECRET: ${SMS_API_SECRET:-}
+      SMS_SENDER_ID: ${SMS_SENDER_ID:-PROPERTYOS}
+      PUSH_PROVIDER: ${PUSH_PROVIDER:-console}
+      PUSH_FCM_SERVER_KEY: ${PUSH_FCM_SERVER_KEY:-}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASS: ${MAIL_PASS:-}
+      APP_NAME: IRED-PropertyOS
+      APP_PORT: 3000
+      APP_CORS_ORIGIN: ${APP_CORS_ORIGIN:-http://localhost:3000}
+      THROTTLER_TTL: 60000
+      THROTTLER_LIMIT: 60
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000/api/v1/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - propertyos-net
+
+  # ─── PostgreSQL ───────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: propertyos-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: propertyos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-propertyos}
+      POSTGRES_DB: propertyos
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U propertyos']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - propertyos-net
+
+  # ─── Redis ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: propertyos-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - propertyos-net
+
+  # ─── MinIO (S3-compatible) ────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: propertyos-minio
+    restart: unless-stopped
+    ports:
+      - '9001:9001'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ':9001'
+    networks:
+      - propertyos-net
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+
+networks:
+  propertyos-net:
+    driver: bridge

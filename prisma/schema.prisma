@@ -11,6 +11,29 @@ datasource db {
 
 // ─── Users & Auth ───────────────────────────────────────────────
 
+// ─── Multi-Tenancy ──────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  slug      String   @unique
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users      User[]
+  buildings  Building[]
+  clients    Client[]
+  deals      Deal[]
+  tasks      Task[]
+  siteVisits SiteVisit[]
+  proposals  Proposal[]
+
+  @@map("organizations")
+}
+
+// ─── Core User Model ───────────────────────────────────────
+
 model User {
   id                String     @id @default(uuid()) @db.Uuid
   fullName          String     @map("full_name")
@@ -19,12 +42,15 @@ model User {
   passwordHash      String     @map("password_hash")
   role              UserRole   @default(WORKER)
   status            UserStatus @default(active)
+  organizationId    String?    @map("organization_id") @db.Uuid
   emailVerifiedAt   DateTime?  @map("email_verified_at")
   mobileVerifiedAt  DateTime?  @map("mobile_verified_at")
   lastLoginAt       DateTime?  @map("last_login_at")
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
   deactivatedAt     DateTime?  @map("deactivated_at")
+
+  organization      Organization? @relation(fields: [organizationId], references: [id])
 
   refreshTokens              RefreshToken[]
   geographicAssignments      WorkerGeographicAssignment[]
@@ -278,6 +304,7 @@ model Building {
   id                       String              @id @default(uuid()) @db.Uuid
   buildingCode             String              @unique @map("building_code")
   name                     String
+  organizationId           String?             @map("organization_id") @db.Uuid
   propertyTypeId           String?             @map("property_type_id") @db.Uuid
   stateId                  String?             @map("state_id") @db.Uuid
   cityId                   String?             @map("city_id") @db.Uuid
@@ -315,6 +342,7 @@ model Building {
   deletedAt                DateTime?           @map("deleted_at")
 
   propertyType       PropertyType?       @relation(fields: [propertyTypeId], references: [id])
+  organization       Organization?       @relation(fields: [organizationId], references: [id])
   state              State?              @relation(fields: [stateId], references: [id])
   city               City?               @relation(fields: [cityId], references: [id])
   zone               Zone?               @relation(fields: [zoneId], references: [id])
@@ -341,6 +369,7 @@ model Building {
   @@index([availabilityStatusId])
   @@index([verificationStatusId])
   @@index([createdBy])
+  @@index([organizationId])
   @@index([deletedAt])
   @@map("buildings")
 }
@@ -592,9 +621,10 @@ model AuditEvent {
 // ─── V2: Clients & Requirements ─────────────────────────────────
 
 model Client {
-  id           String    @id @default(uuid()) @db.Uuid
-  name         String
-  company      String?
+  id             String    @id @default(uuid()) @db.Uuid
+  name           String
+  organizationId String?   @map("organization_id") @db.Uuid
+  company        String?
   email        String?
   mobileNumber String?   @map("mobile_number")
   notes        String?
@@ -604,6 +634,7 @@ model Client {
   deletedAt    DateTime? @map("deleted_at")
 
   creator      User?            @relation("ClientCreator", fields: [createdBy], references: [id])
+  organization Organization?    @relation(fields: [organizationId], references: [id])
   contacts     ClientContact[]
   requirements Requirement[]
   deals        Deal[]
@@ -612,6 +643,7 @@ model Client {
   proposals    Proposal[]
 
   @@index([deletedAt])
+  @@index([organizationId])
   @@map("clients")
 }
 
@@ -671,9 +703,10 @@ model Shortlist {
 // ─── V2: Tasks & Follow-ups ─────────────────────────────────────
 
 model Task {
-  id          String     @id @default(uuid()) @db.Uuid
-  title       String
-  description String?
+  id             String     @id @default(uuid()) @db.Uuid
+  title          String
+  organizationId String?    @map("organization_id") @db.Uuid
+  description    String?
   type        TaskType   @default(general)
   status      TaskStatus @default(open)
   priority    Priority   @default(Medium)
@@ -686,15 +719,17 @@ model Task {
   updatedAt   DateTime   @updatedAt @map("updated_at")
   deletedAt   DateTime?  @map("deleted_at")
 
-  assignee User?    @relation("TaskAssignee", fields: [assignedTo], references: [id])
-  creator  User?    @relation("TaskCreator", fields: [createdBy], references: [id])
-  building Building? @relation(fields: [buildingId], references: [id])
+  assignee    User?     @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  creator     User?     @relation("TaskCreator", fields: [createdBy], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  building    Building? @relation(fields: [buildingId], references: [id])
   client   Client?   @relation(fields: [clientId], references: [id])
 
   @@index([assignedTo])
   @@index([status])
   @@index([dueDate])
   @@index([deletedAt])
+  @@index([organizationId])
   @@map("tasks")
 }
 
@@ -717,8 +752,9 @@ model FollowUp {
 }
 
 model SiteVisit {
-  id          String           @id @default(uuid()) @db.Uuid
-  clientId    String?          @map("client_id") @db.Uuid
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String?          @map("organization_id") @db.Uuid
+  clientId       String?          @map("client_id") @db.Uuid
   buildingId  String?          @map("building_id") @db.Uuid
   unitId      String?          @map("unit_id") @db.Uuid
   scheduledAt DateTime         @map("scheduled_at")
@@ -730,22 +766,25 @@ model SiteVisit {
   updatedAt   DateTime         @updatedAt @map("updated_at")
   deletedAt   DateTime?        @map("deleted_at")
 
-  assignee User?      @relation("SiteVisitAssignee", fields: [assignedTo], references: [id])
-  creator  User?      @relation("SiteVisitCreator", fields: [createdBy], references: [id])
-  client   Client?    @relation(fields: [clientId], references: [id])
+  assignee     User?      @relation("SiteVisitAssignee", fields: [assignedTo], references: [id])
+  creator      User?      @relation("SiteVisitCreator", fields: [createdBy], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  client       Client?    @relation(fields: [clientId], references: [id])
   building Building?  @relation(fields: [buildingId], references: [id])
 
   @@index([scheduledAt])
   @@index([assignedTo])
   @@index([deletedAt])
+  @@index([organizationId])
   @@map("site_visits")
 }
 
 // ─── V2: Deals ──────────────────────────────────────────────────
 
 model Deal {
-  id          String     @id @default(uuid()) @db.Uuid
-  clientId    String?    @map("client_id") @db.Uuid
+  id             String     @id @default(uuid()) @db.Uuid
+  organizationId String?    @map("organization_id") @db.Uuid
+  clientId       String?    @map("client_id") @db.Uuid
   buildingId  String?    @map("building_id") @db.Uuid
   unitId      String?    @map("unit_id") @db.Uuid
   title       String
@@ -760,6 +799,7 @@ model Deal {
 
   assignee    User?        @relation("DealAssignee", fields: [assignedTo], references: [id])
   creator     User?        @relation("DealCreator", fields: [createdBy], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
   client      Client?      @relation(fields: [clientId], references: [id])
   building    Building?    @relation(fields: [buildingId], references: [id])
   unit        Unit?        @relation(fields: [unitId], references: [id])
@@ -769,6 +809,7 @@ model Deal {
   @@index([status])
   @@index([assignedTo])
   @@index([deletedAt])
+  @@index([organizationId])
   @@map("deals")
 }
 
@@ -843,8 +884,9 @@ model ImportRow {
 // ─── V2: Proposals ─────────────────────────────────────────────
 
 model Proposal {
-  id           String   @id @default(uuid()) @db.Uuid
-  clientId     String   @map("client_id") @db.Uuid
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String?  @map("organization_id") @db.Uuid
+  clientId       String   @map("client_id") @db.Uuid
   requirementId String? @map("requirement_id") @db.Uuid
   title        String?
   notes        String?
@@ -855,11 +897,13 @@ model Proposal {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  client     Client  @relation(fields: [clientId], references: [id])
-  creator    User?   @relation(fields: [createdBy], references: [id])
+  client       Client  @relation(fields: [clientId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  creator      User?   @relation(fields: [createdBy], references: [id])
 
   @@index([clientId])
   @@index([createdBy])
+  @@index([organizationId])
   @@map("proposals")
 }
 

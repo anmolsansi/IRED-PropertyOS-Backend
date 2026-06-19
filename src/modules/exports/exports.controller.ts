@@ -6,7 +6,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { ExportsService } from './exports.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
@@ -23,6 +23,7 @@ export class ExportsController {
 
   @Get(':entityType')
   @ApiOperation({ summary: 'Export data as CSV-ready JSON' })
+  @ApiResponse({ status: 200, description: 'Exportable data array', schema: { example: { data: [{ id: 'uuid', name: 'Tower A', buildingCode: 'tow-a', city: 'Mumbai' }], total: 45 } } })
   @UsePipes(new ZodValidationPipe(ExportQuerySchema))
   async export(
     @Param('entityType') entityType: string,

@@ -10,7 +10,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { MediaService } from './media.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
@@ -36,6 +36,16 @@ export class MediaController {
 
   @Get()
   @ApiOperation({ summary: 'List media files' })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of media files',
+    schema: {
+      example: {
+        data: [{ id: 'uuid', entityType: 'building', entityId: 'uuid', fileType: 'image', fileName: 'tower-photo.jpg', url: 'https://...', sizeBytes: 245000 }],
+        pagination: { page: 1, limit: 20, total: 85, totalPages: 5 },
+      },
+    },
+  })
   @UsePipes(new ZodValidationPipe(MediaQuerySchema))
   async findAll(@Query() query: MediaQueryDto) {
     if (query.buildingId) return this.mediaService.findByBuilding(query.buildingId);
