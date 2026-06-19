@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
+import { NotificationsGateway } from './gateway/notifications.gateway';
 
 export interface NotificationPayload {
   to: string;
@@ -17,6 +18,7 @@ export class NotificationsService {
   constructor(
     @InjectQueue('email') private emailQueue: Queue,
     @InjectQueue('sms') private smsQueue: Queue,
+    private gateway: NotificationsGateway,
   ) {}
 
   async sendEmail(payload: NotificationPayload): Promise<void> {
@@ -29,6 +31,18 @@ export class NotificationsService {
   async sendSms(to: string, message: string): Promise<void> {
     const job = await this.smsQueue.add('send-sms', { to, message });
     this.logger.log(`SMS job queued: ${job.id} to ${to}`);
+  }
+
+  notifyUser(userId: string, event: string, data: Record<string, any>) {
+    this.gateway.sendToUser(userId, event, data);
+  }
+
+  notifyAdmins(event: string, data: Record<string, any>) {
+    this.gateway.broadcastToAdmins(event, data);
+  }
+
+  broadcast(event: string, data: Record<string, any>) {
+    this.gateway.broadcast(event, data);
   }
 
   async sendChangeRequestNotification(params: {
@@ -45,6 +59,12 @@ export class NotificationsService {
       data: params,
       priority: 'normal',
     });
+
+    this.notifyAdmins('change-request', {
+      message: `New change request for ${params.entityType}`,
+      changeRequestId: params.changeRequestId,
+      requesterName: params.requesterName,
+    });
   }
 
   async sendApprovalNotification(params: {
@@ -59,6 +79,12 @@ export class NotificationsService {
       template: 'approval-result',
       data: params,
       priority: 'normal',
+    });
+
+    this.notifyUser(params.to, 'approval-result', {
+      message: `Your change request has been ${params.status}`,
+      changeRequestId: params.changeRequestId,
+      status: params.status,
     });
   }
 
@@ -75,6 +101,13 @@ export class NotificationsService {
       data: params,
       priority: 'high',
     });
+
+    this.notifyUser(params.to, 'task-assigned', {
+      message: `You have been assigned a new task: ${params.taskTitle}`,
+      taskTitle: params.taskTitle,
+      assignerName: params.assignerName,
+      dueDate: params.dueDate,
+    });
   }
 
   async sendSiteVisitReminder(params: {
@@ -89,6 +122,13 @@ export class NotificationsService {
       template: 'site-visit-reminder',
       data: params,
       priority: 'high',
+    });
+
+    this.notifyUser(params.to, 'site-visit-reminder', {
+      message: `Reminder: Site visit at ${params.buildingName}`,
+      clientName: params.clientName,
+      buildingName: params.buildingName,
+      scheduledAt: params.scheduledAt,
     });
   }
 

@@ -38,6 +38,14 @@ const envSchema = z.object({
   THROTTLE_TTL: z.coerce.number().default(60000),
   THROTTLE_LIMIT: z.coerce.number().default(60),
 
+  SMS_PROVIDER: z.enum(['console', 'twilio', 'textlocal']).default('console'),
+  SMS_API_KEY: z.string().optional(),
+  SMS_API_SECRET: z.string().optional(),
+  SMS_SENDER_ID: z.string().default('IRED'),
+
+  PUSH_PROVIDER: z.enum(['console', 'fcm']).default('console'),
+  PUSH_FCM_SERVER_KEY: z.string().optional(),
+
   LOG_LEVEL: z.enum(['error', 'warn', 'log', 'debug', 'verbose']).default('log'),
 
   CORS_ORIGIN: z.string().default('http://localhost:5173'),

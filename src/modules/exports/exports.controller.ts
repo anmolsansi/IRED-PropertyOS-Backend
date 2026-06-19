@@ -1,8 +1,17 @@
-import { Controller, Get, Post, Param, Query, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Query,
+  UseGuards,
+  UsePipes,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ExportsService } from './exports.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import { ExportQuerySchema, ExportQueryDto } from './dto/exports.schema';
 
 @ApiTags('exports')
 @ApiBearerAuth('access-token')
@@ -14,17 +23,11 @@ export class ExportsController {
 
   @Get(':entityType')
   @ApiOperation({ summary: 'Export data as CSV-ready JSON' })
+  @UsePipes(new ZodValidationPipe(ExportQuerySchema))
   async export(
     @Param('entityType') entityType: string,
-    @Query('stateId') stateId?: string,
-    @Query('cityId') cityId?: string,
-    @Query('buildingId') buildingId?: string,
+    @Query() query: ExportQueryDto,
   ) {
-    const filters: Record<string, any> = {};
-    if (stateId) filters.stateId = stateId;
-    if (cityId) filters.cityId = cityId;
-    if (buildingId) filters.buildingId = buildingId;
-
-    return this.exportsService.getExportableData(entityType, filters);
+    return this.exportsService.getExportableData(entityType, query);
   }
 }

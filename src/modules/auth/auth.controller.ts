@@ -6,6 +6,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
@@ -36,6 +37,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('login')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Login with email and password' })
   @UsePipes(new ZodValidationPipe(LoginSchema))
   async login(@Body() dto: LoginDto) {
@@ -43,6 +45,7 @@ export class AuthController {
   }
 
   @Post('verify-email-otp')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @ApiOperation({ summary: 'Verify email OTP and get tokens' })
   @UsePipes(new ZodValidationPipe(VerifyEmailOtpSchema))
   async verifyEmailOtp(@Body() dto: VerifyEmailOtpDto) {
@@ -72,6 +75,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Request password reset OTP' })
   @UsePipes(new ZodValidationPipe(ForgotPasswordSchema))
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
@@ -86,6 +90,7 @@ export class AuthController {
   }
 
   @Post('send-mobile-recovery-otp')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Send OTP to mobile for recovery' })
   @UsePipes(new ZodValidationPipe(SendMobileRecoveryOtpSchema))
   async sendMobileRecoveryOtp(@Body() dto: SendMobileRecoveryOtpDto) {

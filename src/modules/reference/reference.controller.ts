@@ -66,4 +66,22 @@ export class ReferenceController {
   async findAllDocumentCategories() {
     return this.referenceService.findAllDocumentCategories();
   }
+
+  @Get('sources')
+  @ApiOperation({ summary: 'List all sources' })
+  async findAllSources() {
+    return this.referenceService.findAllSources();
+  }
+
+  @Get('zones')
+  @ApiOperation({ summary: 'List all zones' })
+  async findAllZones() {
+    return this.referenceService.findAllZones();
+  }
+
+  @Get('cities/:cityId/zones')
+  @ApiOperation({ summary: 'List zones by city' })
+  async findZonesByCity(@Param('cityId') cityId: string) {
+    return this.referenceService.findZonesByCity(cityId);
+  }
 }

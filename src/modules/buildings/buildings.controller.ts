@@ -8,12 +8,22 @@ import {
   Body,
   Query,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { BuildingsService } from './buildings.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import {
+  CreateBuildingSchema,
+  UpdateBuildingSchema,
+  BuildingQuerySchema,
+  CreateBuildingDto,
+  UpdateBuildingDto,
+  BuildingQueryDto,
+} from './dto/buildings.schema';
 
 @ApiTags('buildings')
 @ApiBearerAuth('access-token')
@@ -24,26 +34,9 @@ export class BuildingsController {
 
   @Get()
   @ApiOperation({ summary: 'List buildings with filters' })
-  async findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('stateId') stateId?: string,
-    @Query('cityId') cityId?: string,
-    @Query('localityId') localityId?: string,
-    @Query('propertyTypeId') propertyTypeId?: string,
-    @Query('availabilityStatusId') availabilityStatusId?: string,
-    @Query('search') search?: string,
-  ) {
-    return this.buildingsService.findAll({
-      page,
-      limit,
-      stateId,
-      cityId,
-      localityId,
-      propertyTypeId,
-      availabilityStatusId,
-      search,
-    });
+  @UsePipes(new ZodValidationPipe(BuildingQuerySchema))
+  async findAll(@Query() query: BuildingQueryDto) {
+    return this.buildingsService.findAll(query);
   }
 
   @Get(':id')
@@ -54,21 +47,23 @@ export class BuildingsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new building' })
-  async create(@Body() body: any, @CurrentUser('id') userId: string) {
-    return this.buildingsService.create(body, userId);
+  @UsePipes(new ZodValidationPipe(CreateBuildingSchema))
+  async create(@Body() dto: CreateBuildingDto, @CurrentUser('id') userId: string) {
+    return this.buildingsService.create(dto, userId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a building' })
+  @UsePipes(new ZodValidationPipe(UpdateBuildingSchema))
   async update(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() dto: UpdateBuildingDto,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') userRole: string,
   ) {
     return this.buildingsService.update(
       id,
-      body,
+      dto,
       userId,
       userRole === Role.ADMIN,
     );

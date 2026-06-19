@@ -156,4 +156,22 @@ export class ClientsService {
 
     return this.prisma.shortlist.update({ where: { id }, data });
   }
+
+  async softDelete(id: string) {
+    const client = await this.prisma.client.findUnique({ where: { id } });
+    if (!client) throw new NotFoundException('Client not found');
+    return this.prisma.client.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async restore(id: string) {
+    const client = await this.prisma.client.findUnique({ where: { id } });
+    if (!client) throw new NotFoundException('Client not found');
+    return this.prisma.client.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+  }
 }

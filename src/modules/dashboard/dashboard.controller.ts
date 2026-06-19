@@ -1,9 +1,17 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  UsePipes,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { DashboardService } from './dashboard.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import { ActivityQuerySchema, ActivityQueryDto } from './dto/dashboard.schema';
 
 @ApiTags('dashboard')
 @ApiBearerAuth('access-token')
@@ -28,7 +36,8 @@ export class DashboardController {
 
   @Get('activity')
   @ApiOperation({ summary: 'Get recent activity feed' })
-  async getActivity(@Query('limit') limit?: number) {
-    return this.dashboardService.getActivity(limit);
+  @UsePipes(new ZodValidationPipe(ActivityQuerySchema))
+  async getActivity(@Query() query: ActivityQueryDto) {
+    return this.dashboardService.getActivity(query.limit);
   }
 }

@@ -52,6 +52,18 @@ export default registerAs('app', () => ({
     limit: parseInt(process.env.THROTTLE_LIMIT || '60', 10),
   },
 
+  sms: {
+    provider: process.env.SMS_PROVIDER || 'console',
+    apiKey: process.env.SMS_API_KEY,
+    apiSecret: process.env.SMS_API_SECRET,
+    senderId: process.env.SMS_SENDER_ID || 'IRED',
+  },
+
+  push: {
+    provider: process.env.PUSH_PROVIDER || 'console',
+    fcmServerKey: process.env.PUSH_FCM_SERVER_KEY,
+  },
+
   logLevel: process.env.LOG_LEVEL || 'log',
 
   cors: {

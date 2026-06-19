@@ -31,6 +31,35 @@ export class MediaService {
     });
   }
 
+  async findAll(query?: { page?: number; limit?: number; fileType?: string }) {
+    const { page = 1, limit = 20, fileType } = query || {};
+    const skip = (page - 1) * limit;
+
+    const where: any = { deletedAt: null };
+    if (fileType) where.fileType = fileType;
+
+    const [data, total] = await Promise.all([
+      this.prisma.media.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          building: { select: { id: true, name: true } },
+          floor: { select: { id: true, floorName: true } },
+          unit: { select: { id: true, unitNumber: true } },
+          documentCategory: true,
+        },
+      }),
+      this.prisma.media.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
   async getUploadUrl(params: {
     fileName: string;
     mimeType: string;

@@ -7,12 +7,20 @@ import {
   Param,
   Body,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ContactsService } from './contacts.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import {
+  CreateContactSchema,
+  UpdateContactSchema,
+  CreateContactDto,
+  UpdateContactDto,
+} from './dto/contacts.schema';
 
 @ApiTags('contacts')
 @ApiBearerAuth('access-token')
@@ -29,21 +37,23 @@ export class ContactsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new contact' })
-  async create(@Body() body: any, @CurrentUser('id') userId: string) {
-    return this.contactsService.create(body, userId);
+  @UsePipes(new ZodValidationPipe(CreateContactSchema))
+  async create(@Body() dto: CreateContactDto, @CurrentUser('id') userId: string) {
+    return this.contactsService.create(dto, userId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a contact' })
+  @UsePipes(new ZodValidationPipe(UpdateContactSchema))
   async update(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() dto: UpdateContactDto,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') userRole: string,
   ) {
     return this.contactsService.update(
       id,
-      body,
+      dto,
       userId,
       userRole === Role.ADMIN,
     );

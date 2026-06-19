@@ -4,7 +4,9 @@ import {
   Post,
   Param,
   Body,
+  Query,
   UseGuards,
+  UsePipes,
   UploadedFile,
   UseInterceptors,
   BadRequestException,
@@ -15,6 +17,9 @@ import { ImportsService } from './imports.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import { MapColumnsSchema, MapColumnsDto } from './dto/imports.schema';
+import { parseCsvFile } from '../../shared/utils/csv-parser';
 
 @ApiTags('imports')
 @ApiBearerAuth('access-token')
@@ -47,7 +52,7 @@ export class ImportsController {
   ) {
     if (!file) throw new BadRequestException('No file uploaded');
 
-    const rows = this.parseCsvFile(file.buffer.toString());
+    const rows = parseCsvFile(file.buffer.toString());
     return this.importsService.upload(
       {
         fileName: file.originalname,
@@ -61,11 +66,12 @@ export class ImportsController {
 
   @Post(':id/map-columns')
   @ApiOperation({ summary: 'Map source columns to system fields' })
+  @UsePipes(new ZodValidationPipe(MapColumnsSchema))
   async mapColumns(
     @Param('id') id: string,
-    @Body() body: { mapping: Record<string, string> },
+    @Body() dto: MapColumnsDto,
   ) {
-    return this.importsService.mapColumns(id, body.mapping);
+    return this.importsService.mapColumns(id, dto.mapping);
   }
 
   @Post(':id/validate')
@@ -81,24 +87,5 @@ export class ImportsController {
     @CurrentUser('id') userId: string,
   ) {
     return this.importsService.confirm(id, userId);
-  }
-
-  private parseCsvFile(content: string): { rowNumber: number; data: Record<string, string> }[] {
-    const lines = content.split('\n').filter((l) => l.trim());
-    if (lines.length < 2) return [];
-
-    const headers = lines[0].split(',').map((h) => h.trim().replace(/"/g, ''));
-    const rows: { rowNumber: number; data: Record<string, string> }[] = [];
-
-    for (let i = 1; i < lines.length; i++) {
-      const values = lines[i].split(',').map((v) => v.trim().replace(/"/g, ''));
-      const data: Record<string, string> = {};
-      headers.forEach((header, idx) => {
-        data[header] = values[idx] || '';
-      });
-      rows.push({ rowNumber: i, data });
-    }
-
-    return rows;
   }
 }

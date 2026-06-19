@@ -113,7 +113,7 @@ export class SearchService {
     minRent?: number;
     maxRent?: number;
     minArea?: number;
-    maxArea?: string;
+    maxArea?: number;
     search?: string;
     page?: number;
     limit?: number;
@@ -134,7 +134,7 @@ export class SearchService {
       ...(filters.minRent && { monthlyRent: { gte: filters.minRent } }),
       ...(filters.maxRent && { monthlyRent: { lte: filters.maxRent } }),
       ...(filters.minArea && { carpetArea: { gte: filters.minArea } }),
-      ...(filters.maxArea && { carpetArea: { lte: parseFloat(filters.maxArea) } }),
+      ...(filters.maxArea && { carpetArea: { lte: filters.maxArea } }),
       ...(search && {
         OR: [
           { unitNumber: { contains: search, mode: 'insensitive' as const } },

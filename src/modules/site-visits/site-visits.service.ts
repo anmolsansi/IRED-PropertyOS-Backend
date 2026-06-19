@@ -100,4 +100,22 @@ export class SiteVisitsService {
   async complete(id: string, notes?: string) {
     return this.update(id, { status: 'completed', notes });
   }
+
+  async softDelete(id: string) {
+    const siteVisit = await this.prisma.siteVisit.findUnique({ where: { id } });
+    if (!siteVisit) throw new NotFoundException('Site visit not found');
+    return this.prisma.siteVisit.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async restore(id: string) {
+    const siteVisit = await this.prisma.siteVisit.findUnique({ where: { id } });
+    if (!siteVisit) throw new NotFoundException('Site visit not found');
+    return this.prisma.siteVisit.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+  }
 }

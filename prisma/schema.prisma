@@ -53,6 +53,7 @@ model User {
   createdImports             Import[]                       @relation("ImportCreator")
   processedImports           Import[]                       @relation("ImportProcessor")
   otpRecords                 OtpRecord[]
+  createdProposals           Proposal[]
 
   @@map("users")
 }
@@ -591,15 +592,16 @@ model AuditEvent {
 // ─── V2: Clients & Requirements ─────────────────────────────────
 
 model Client {
-  id           String   @id @default(uuid()) @db.Uuid
+  id           String    @id @default(uuid()) @db.Uuid
   name         String
   company      String?
   email        String?
-  mobileNumber String?  @map("mobile_number")
+  mobileNumber String?   @map("mobile_number")
   notes        String?
-  createdBy    String?  @map("created_by") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdBy    String?   @map("created_by") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
 
   creator      User?            @relation("ClientCreator", fields: [createdBy], references: [id])
   contacts     ClientContact[]
@@ -607,7 +609,9 @@ model Client {
   deals        Deal[]
   siteVisits   SiteVisit[]
   tasks        Task[]
+  proposals    Proposal[]
 
+  @@index([deletedAt])
   @@map("clients")
 }
 
@@ -680,6 +684,7 @@ model Task {
   createdBy   String?    @map("created_by") @db.Uuid
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
 
   assignee User?    @relation("TaskAssignee", fields: [assignedTo], references: [id])
   creator  User?    @relation("TaskCreator", fields: [createdBy], references: [id])
@@ -689,6 +694,7 @@ model Task {
   @@index([assignedTo])
   @@index([status])
   @@index([dueDate])
+  @@index([deletedAt])
   @@map("tasks")
 }
 
@@ -722,6 +728,7 @@ model SiteVisit {
   createdBy   String?          @map("created_by") @db.Uuid
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
+  deletedAt   DateTime?        @map("deleted_at")
 
   assignee User?      @relation("SiteVisitAssignee", fields: [assignedTo], references: [id])
   creator  User?      @relation("SiteVisitCreator", fields: [createdBy], references: [id])
@@ -730,6 +737,7 @@ model SiteVisit {
 
   @@index([scheduledAt])
   @@index([assignedTo])
+  @@index([deletedAt])
   @@map("site_visits")
 }
 
@@ -748,6 +756,7 @@ model Deal {
   createdBy   String?    @map("created_by") @db.Uuid
   createdAt   DateTime   @default(now()) @map("created_at")
   updatedAt   DateTime   @updatedAt @map("updated_at")
+  deletedAt   DateTime?  @map("deleted_at")
 
   assignee    User?        @relation("DealAssignee", fields: [assignedTo], references: [id])
   creator     User?        @relation("DealCreator", fields: [createdBy], references: [id])
@@ -759,6 +768,7 @@ model Deal {
 
   @@index([status])
   @@index([assignedTo])
+  @@index([deletedAt])
   @@map("deals")
 }
 
@@ -828,6 +838,29 @@ model ImportRow {
 
   @@index([importId])
   @@map("import_rows")
+}
+
+// ─── V2: Proposals ─────────────────────────────────────────────
+
+model Proposal {
+  id           String   @id @default(uuid()) @db.Uuid
+  clientId     String   @map("client_id") @db.Uuid
+  requirementId String? @map("requirement_id") @db.Uuid
+  title        String?
+  notes        String?
+  unitIds      Json     @map("unit_ids")
+  pdfStorageKey String? @map("pdf_storage_key")
+  status       ProposalStatus @default(draft)
+  createdBy    String?  @map("created_by") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  client     Client  @relation(fields: [clientId], references: [id])
+  creator    User?   @relation(fields: [createdBy], references: [id])
+
+  @@index([clientId])
+  @@index([createdBy])
+  @@map("proposals")
 }
 
 // ─── OTP Records ────────────────────────────────────────────────
@@ -985,4 +1018,12 @@ enum ImportStatus {
   processing
   completed
   failed
+}
+
+enum ProposalStatus {
+  draft
+  sent
+  accepted
+  rejected
+  expired
 }

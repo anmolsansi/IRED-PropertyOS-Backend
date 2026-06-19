@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
+import { ProposalStatus } from '../../generated/prisma';
 import PDFDocument from 'pdfkit';
 
 @Injectable()
@@ -25,6 +26,79 @@ export class ProposalsService {
 
     const units = await this.prisma.unit.findMany({
       where: { id: { in: data.unitIds } },
+    });
+    if (units.length === 0) throw new NotFoundException('No valid units found');
+
+    const proposal = await this.prisma.proposal.create({
+      data: {
+        clientId: data.clientId,
+        requirementId: data.requirementId,
+        unitIds: data.unitIds,
+        notes: data.notes,
+        createdBy: userId,
+        status: ProposalStatus.draft,
+      },
+      include: {
+        client: true,
+      },
+    });
+
+    this.logger.log(`Proposal ${proposal.id} created for client ${client.name} with ${units.length} units`);
+    return proposal;
+  }
+
+  async findAll(query: { page?: number; limit?: number; clientId?: string }) {
+    const { page = 1, limit = 20, clientId } = query;
+    const skip = (page - 1) * limit;
+
+    const where = clientId ? { clientId } : {};
+
+    const [data, total] = await Promise.all([
+      this.prisma.proposal.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { client: true, creator: { select: { id: true, fullName: true } } },
+      }),
+      this.prisma.proposal.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async findOne(id: string) {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id },
+      include: { client: true, creator: { select: { id: true, fullName: true } } },
+    });
+    if (!proposal) throw new NotFoundException('Proposal not found');
+    return proposal;
+  }
+
+  async updateStatus(id: string, status: ProposalStatus) {
+    const proposal = await this.prisma.proposal.findUnique({ where: { id } });
+    if (!proposal) throw new NotFoundException('Proposal not found');
+
+    return this.prisma.proposal.update({
+      where: { id },
+      data: { status },
+    });
+  }
+
+  async generatePdf(proposalId: string): Promise<Buffer> {
+    const proposal = await this.prisma.proposal.findUnique({
+      where: { id: proposalId },
+      include: { client: true },
+    });
+    if (!proposal) throw new NotFoundException('Proposal not found');
+
+    const unitIds = proposal.unitIds as string[];
+    const units = await this.prisma.unit.findMany({
+      where: { id: { in: unitIds } },
       include: {
         building: true,
         floor: true,
@@ -33,24 +107,18 @@ export class ProposalsService {
       },
     });
 
-    const proposal = {
-      id: `prop-${Date.now()}`,
-      client,
-      units,
-      notes: data.notes,
-      createdBy: userId,
-      createdAt: new Date(),
-    };
-
-    this.logger.log(`Proposal created for client ${client.name} with ${units.length} units`);
-    return proposal;
+    return this.renderPdf(proposal.client, units, proposal.notes || undefined);
   }
 
-  async generatePdf(proposalData: {
+  async generatePdfFromData(proposalData: {
     client: any;
     units: any[];
     notes?: string;
   }): Promise<Buffer> {
+    return this.renderPdf(proposalData.client, proposalData.units, proposalData.notes);
+  }
+
+  private renderPdf(client: any, units: any[], notes?: string): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       const doc = new PDFDocument({ size: 'A4', margin: 50 });
       const chunks: Buffer[] = [];
@@ -67,16 +135,16 @@ export class ProposalsService {
       doc.fontSize(12).font('Helvetica-Bold').text('Client Information');
       doc.moveDown(0.3);
       doc.font('Helvetica').fontSize(11);
-      doc.text(`Name: ${proposalData.client.name}`);
-      if (proposalData.client.company) doc.text(`Company: ${proposalData.client.company}`);
-      if (proposalData.client.email) doc.text(`Email: ${proposalData.client.email}`);
-      if (proposalData.client.mobileNumber) doc.text(`Mobile: ${proposalData.client.mobileNumber}`);
+      doc.text(`Name: ${client.name}`);
+      if (client.company) doc.text(`Company: ${client.company}`);
+      if (client.email) doc.text(`Email: ${client.email}`);
+      if (client.mobileNumber) doc.text(`Mobile: ${client.mobileNumber}`);
       doc.moveDown(1);
 
       doc.fontSize(12).font('Helvetica-Bold').text('Property Details');
       doc.moveDown(0.3);
 
-      for (const unit of proposalData.units) {
+      for (const unit of units) {
         doc.font('Helvetica-Bold').fontSize(11);
         doc.text(`${unit.building?.name || 'N/A'} — Unit ${unit.unitNumber}`);
         doc.font('Helvetica').fontSize(10);
@@ -90,10 +158,10 @@ export class ProposalsService {
         doc.moveDown(0.5);
       }
 
-      if (proposalData.notes) {
+      if (notes) {
         doc.moveDown(0.5);
         doc.fontSize(12).font('Helvetica-Bold').text('Notes');
-        doc.font('Helvetica').fontSize(11).text(proposalData.notes);
+        doc.font('Helvetica').fontSize(11).text(notes);
       }
 
       doc.moveDown(2);
@@ -103,15 +171,5 @@ export class ProposalsService {
 
       doc.end();
     });
-  }
-
-  async generateAndStorePdf(proposalData: {
-    client: any;
-    units: any[];
-    notes?: string;
-  }): Promise<{ buffer: Buffer; fileName: string }> {
-    const buffer = await this.generatePdf(proposalData);
-    const fileName = `proposal-${proposalData.client.id}-${Date.now()}.pdf`;
-    return { buffer, fileName };
   }
 }

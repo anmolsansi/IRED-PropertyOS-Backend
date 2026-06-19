@@ -8,11 +8,32 @@ import {
   Body,
   Query,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ClientsService } from './clients.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
+import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import {
+  CreateClientSchema,
+  UpdateClientSchema,
+  AddClientContactSchema,
+  CreateRequirementSchema,
+  UpdateRequirementSchema,
+  AddShortlistSchema,
+  UpdateShortlistSchema,
+  ClientQuerySchema,
+  CreateClientDto,
+  UpdateClientDto,
+  AddClientContactDto,
+  CreateRequirementDto,
+  UpdateRequirementDto,
+  AddShortlistDto,
+  UpdateShortlistDto,
+  ClientQueryDto,
+} from './dto/clients.schema';
 
 @ApiTags('clients')
 @ApiBearerAuth('access-token')
@@ -23,12 +44,9 @@ export class ClientsController {
 
   @Get()
   @ApiOperation({ summary: 'List clients' })
-  async findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('search') search?: string,
-  ) {
-    return this.clientsService.findAll({ page, limit, search });
+  @UsePipes(new ZodValidationPipe(ClientQuerySchema))
+  async findAll(@Query() query: ClientQueryDto) {
+    return this.clientsService.findAll(query);
   }
 
   @Get(':id')
@@ -39,20 +57,23 @@ export class ClientsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new client' })
-  async create(@Body() body: any, @CurrentUser('id') userId: string) {
-    return this.clientsService.create(body, userId);
+  @UsePipes(new ZodValidationPipe(CreateClientSchema))
+  async create(@Body() dto: CreateClientDto, @CurrentUser('id') userId: string) {
+    return this.clientsService.create(dto, userId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a client' })
-  async update(@Param('id') id: string, @Body() body: any) {
-    return this.clientsService.update(id, body);
+  @UsePipes(new ZodValidationPipe(UpdateClientSchema))
+  async update(@Param('id') id: string, @Body() dto: UpdateClientDto) {
+    return this.clientsService.update(id, dto);
   }
 
   @Post(':id/contacts')
   @ApiOperation({ summary: 'Add a contact to a client' })
-  async addContact(@Param('id') id: string, @Body() body: any) {
-    return this.clientsService.addContact(id, body);
+  @UsePipes(new ZodValidationPipe(AddClientContactSchema))
+  async addContact(@Param('id') id: string, @Body() dto: AddClientContactDto) {
+    return this.clientsService.addContact(id, dto);
   }
 
   @Delete(':clientId/contacts/:contactId')
@@ -63,38 +84,56 @@ export class ClientsController {
 
   @Post(':id/requirements')
   @ApiOperation({ summary: 'Create a requirement for a client' })
+  @UsePipes(new ZodValidationPipe(CreateRequirementSchema))
   async createRequirement(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() dto: CreateRequirementDto,
     @CurrentUser('id') userId: string,
   ) {
-    return this.clientsService.createRequirement(id, body, userId);
+    return this.clientsService.createRequirement(id, dto, userId);
   }
 
   @Patch('requirements/:reqId')
   @ApiOperation({ summary: 'Update a requirement' })
+  @UsePipes(new ZodValidationPipe(UpdateRequirementSchema))
   async updateRequirement(
     @Param('reqId') reqId: string,
-    @Body() body: any,
+    @Body() dto: UpdateRequirementDto,
   ) {
-    return this.clientsService.updateRequirement(reqId, body);
+    return this.clientsService.updateRequirement(reqId, dto);
   }
 
   @Post('requirements/:reqId/shortlists')
   @ApiOperation({ summary: 'Add a shortlist to a requirement' })
+  @UsePipes(new ZodValidationPipe(AddShortlistSchema))
   async addShortlist(
     @Param('reqId') reqId: string,
-    @Body() body: any,
+    @Body() dto: AddShortlistDto,
   ) {
-    return this.clientsService.addShortlist(reqId, body);
+    return this.clientsService.addShortlist(reqId, dto);
   }
 
   @Patch('shortlists/:shortlistId')
   @ApiOperation({ summary: 'Update a shortlist status' })
+  @UsePipes(new ZodValidationPipe(UpdateShortlistSchema))
   async updateShortlist(
     @Param('shortlistId') shortlistId: string,
-    @Body() body: any,
+    @Body() dto: UpdateShortlistDto,
   ) {
-    return this.clientsService.updateShortlist(shortlistId, body);
+    return this.clientsService.updateShortlist(shortlistId, dto);
+  }
+
+  @Delete(':id')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Soft delete a client (Admin only)' })
+  async softDelete(@Param('id') id: string) {
+    return this.clientsService.softDelete(id);
+  }
+
+  @Post(':id/restore')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Restore a soft-deleted client (Admin only)' })
+  async restore(@Param('id') id: string) {
+    return this.clientsService.restore(id);
   }
 }

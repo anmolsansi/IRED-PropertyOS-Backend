@@ -7,12 +7,20 @@ import {
   Param,
   Body,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { FloorsService } from './floors.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import {
+  CreateFloorSchema,
+  UpdateFloorSchema,
+  CreateFloorDto,
+  UpdateFloorDto,
+} from './dto/floors.schema';
 
 @ApiTags('floors')
 @ApiBearerAuth('access-token')
@@ -29,12 +37,13 @@ export class FloorsController {
 
   @Post()
   @ApiOperation({ summary: 'Add a floor to a building' })
+  @UsePipes(new ZodValidationPipe(CreateFloorSchema))
   async create(
     @Param('buildingId') buildingId: string,
-    @Body() body: any,
+    @Body() dto: CreateFloorDto,
     @CurrentUser('id') userId: string,
   ) {
-    return this.floorsService.create(buildingId, body, userId);
+    return this.floorsService.create(buildingId, dto, userId);
   }
 
   @Get(':id')
@@ -45,13 +54,14 @@ export class FloorsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a floor' })
+  @UsePipes(new ZodValidationPipe(UpdateFloorSchema))
   async update(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() dto: UpdateFloorDto,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') userRole: string,
   ) {
-    return this.floorsService.update(id, body, userId, userRole === Role.ADMIN);
+    return this.floorsService.update(id, dto, userId, userRole === Role.ADMIN);
   }
 
   @Delete(':id')

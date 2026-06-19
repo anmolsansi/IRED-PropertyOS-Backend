@@ -130,4 +130,22 @@ export class TasksService {
 
     return this.prisma.followUp.update({ where: { id }, data });
   }
+
+  async softDelete(id: string) {
+    const task = await this.prisma.task.findUnique({ where: { id } });
+    if (!task) throw new NotFoundException('Task not found');
+    return this.prisma.task.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async restore(id: string) {
+    const task = await this.prisma.task.findUnique({ where: { id } });
+    if (!task) throw new NotFoundException('Task not found');
+    return this.prisma.task.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+  }
 }
