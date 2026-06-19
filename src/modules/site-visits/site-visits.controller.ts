@@ -10,7 +10,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { SiteVisitsService } from './site-visits.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
@@ -36,6 +36,25 @@ export class SiteVisitsController {
 
   @Get()
   @ApiOperation({ summary: 'List site visits' })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of site visits',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 'sv1e42c00-1234-4567-8901-abcdef123456',
+            scheduledAt: '2025-01-20T14:00:00.000Z',
+            status: 'scheduled',
+            client: { name: 'Acme Corp' },
+            building: { name: 'Express Towers' },
+            assignee: { fullName: 'Rahul Verma' },
+          },
+        ],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      },
+    },
+  })
   @UsePipes(new ZodValidationPipe(SiteVisitQuerySchema))
   async findAll(@Query() query: SiteVisitQueryDto) {
     return this.siteVisitsService.findAll(query);
@@ -49,6 +68,22 @@ export class SiteVisitsController {
 
   @Post()
   @ApiOperation({ summary: 'Schedule a new site visit' })
+  @ApiResponse({
+    status: 201,
+    description: 'Site visit scheduled',
+    schema: {
+      example: {
+        id: 'sv1e42c00-1234-4567-8901-abcdef123456',
+        scheduledAt: '2025-01-20T14:00:00.000Z',
+        status: 'scheduled',
+        clientId: 'client-id',
+        buildingId: 'building-id',
+        assignedTo: 'worker-id',
+        createdBy: 'user-id',
+        createdAt: '2025-01-15T10:30:00.000Z',
+      },
+    },
+  })
   @UsePipes(new ZodValidationPipe(CreateSiteVisitSchema))
   async create(@Body() dto: CreateSiteVisitDto, @CurrentUser('id') userId: string) {
     return this.siteVisitsService.create(dto, userId);

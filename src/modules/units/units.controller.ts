@@ -10,7 +10,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { UnitsService } from './units.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
@@ -34,6 +34,7 @@ export class UnitsController {
 
   @Get()
   @ApiOperation({ summary: 'List units with filters' })
+  @ApiResponse({ status: 200, description: 'Paginated unit list', schema: { example: { data: [{ id: 'uuid', unitCode: 'u1', unitNumber: '101', carpetArea: 800, monthlyRent: 50000, availabilityStatus: { name: 'Available' } }], pagination: { page: 1, limit: 20, total: 200, totalPages: 10 } } } })
   @UsePipes(new ZodValidationPipe(UnitQuerySchema))
   async findAll(@Query() query: UnitQueryDto) {
     return this.unitsService.findAll(query);
@@ -41,12 +42,15 @@ export class UnitsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get unit by ID' })
+  @ApiResponse({ status: 200, description: 'Unit details with relations' })
+  @ApiResponse({ status: 404, description: 'Unit not found' })
   async findOne(@Param('id') id: string) {
     return this.unitsService.findOne(id);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create a new unit' })
+  @ApiResponse({ status: 201, description: 'Unit created', schema: { example: { id: 'uuid', unitCode: 'bld-101', unitNumber: '101', carpetArea: 800, monthlyRent: 50000 } } })
   @UsePipes(new ZodValidationPipe(CreateUnitSchema))
   async create(@Body() dto: CreateUnitDto, @CurrentUser('id') userId: string) {
     return this.unitsService.create(dto, userId);
@@ -54,6 +58,7 @@ export class UnitsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a unit' })
+  @ApiResponse({ status: 200, description: 'Unit updated' })
   @UsePipes(new ZodValidationPipe(UpdateUnitSchema))
   async update(
     @Param('id') id: string,
@@ -67,6 +72,7 @@ export class UnitsController {
   @Delete(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Soft delete a unit (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Unit soft-deleted', schema: { example: { id: 'uuid', deletedAt: '2025-01-15T10:30:00.000Z' } } })
   async softDelete(@Param('id') id: string) {
     return this.unitsService.softDelete(id);
   }
@@ -74,6 +80,7 @@ export class UnitsController {
   @Post(':id/restore')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Restore a soft-deleted unit (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Unit restored', schema: { example: { id: 'uuid', deletedAt: null } } })
   async restore(@Param('id') id: string) {
     return this.unitsService.restore(id);
   }

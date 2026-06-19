@@ -132,6 +132,32 @@ export class NotificationsService {
     });
   }
 
+  async sendWelcomeEmail(params: {
+    to: string;
+    fullName: string;
+  }): Promise<void> {
+    await this.sendEmail({
+      to: params.to,
+      subject: `Welcome to IRED PropertyOS`,
+      template: 'welcome',
+      data: { ...params, appUrl: 'http://localhost:3000' },
+      priority: 'normal',
+    });
+  }
+
+  async sendPasswordResetEmail(params: {
+    to: string;
+    resetCode: string;
+  }): Promise<void> {
+    await this.sendEmail({
+      to: params.to,
+      subject: `Password Reset — IRED PropertyOS`,
+      template: 'password-reset',
+      data: params,
+      priority: 'high',
+    });
+  }
+
   async getQueueStats() {
     const [emailWaiting, emailActive, emailCompleted, emailFailed] = await Promise.all([
       this.emailQueue.getWaitingCount(),

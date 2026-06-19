@@ -64,6 +64,10 @@ export default registerAs('app', () => ({
     fcmServerKey: process.env.PUSH_FCM_SERVER_KEY,
   },
 
+  encryption: {
+    key: process.env.ENCRYPTION_KEY,
+  },
+
   logLevel: process.env.LOG_LEVEL || 'log',
 
   cors: {

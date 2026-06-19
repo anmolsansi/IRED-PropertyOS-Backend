@@ -9,7 +9,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { ChangeRequestsService } from './change-requests.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
@@ -37,6 +37,20 @@ export class ChangeRequestsController {
 
   @Get()
   @ApiOperation({ summary: 'List change requests' })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of change requests',
+    schema: {
+      example: {
+        data: [{
+          id: 'uuid', entityType: 'building', entityId: 'uuid',
+          requestedBy: { id: 'uuid', fullName: 'John Doe' },
+          status: 'PENDING', itemCount: 3, createdAt: '2025-01-15T10:30:00.000Z',
+        }],
+        pagination: { page: 1, limit: 20, total: 12, totalPages: 1 },
+      },
+    },
+  })
   @UsePipes(new ZodValidationPipe(ChangeRequestQuerySchema))
   async findAll(@Query() query: ChangeRequestQueryDto) {
     return this.changeRequestsService.findAll(query);

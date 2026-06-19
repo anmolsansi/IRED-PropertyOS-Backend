@@ -10,7 +10,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
@@ -38,6 +38,27 @@ export class TasksController {
 
   @Get()
   @ApiOperation({ summary: 'List tasks' })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of tasks',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 't1e42c00-1234-4567-8901-abcdef123456',
+            title: 'Follow up with Acme Corp',
+            type: 'follow_up',
+            status: 'open',
+            priority: 'High',
+            dueDate: '2025-01-20T00:00:00.000Z',
+            assignee: { fullName: 'Rahul Verma' },
+            creator: { fullName: 'System Admin' },
+          },
+        ],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      },
+    },
+  })
   @UsePipes(new ZodValidationPipe(TaskQuerySchema))
   async findAll(@Query() query: TaskQueryDto) {
     return this.tasksService.findAll(query);
@@ -45,12 +66,46 @@ export class TasksController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get task by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Task with follow-ups',
+    schema: {
+      example: {
+        id: 't1e42c00-1234-4567-8901-abcdef123456',
+        title: 'Follow up with Acme Corp',
+        description: 'Check if they need more options',
+        type: 'follow_up',
+        status: 'open',
+        priority: 'High',
+        dueDate: '2025-01-20T00:00:00.000Z',
+        followUps: [
+          { id: 'fu-1', title: 'Called client', status: 'completed', dueDate: '2025-01-18' },
+        ],
+      },
+    },
+  })
   async findOne(@Param('id') id: string) {
     return this.tasksService.findOne(id);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create a new task' })
+  @ApiResponse({
+    status: 201,
+    description: 'Task created',
+    schema: {
+      example: {
+        id: 't1e42c00-1234-4567-8901-abcdef123456',
+        title: 'Follow up with Acme Corp',
+        type: 'follow_up',
+        status: 'open',
+        priority: 'High',
+        dueDate: '2025-01-20T00:00:00.000Z',
+        createdBy: 'user-id',
+        createdAt: '2025-01-15T10:30:00.000Z',
+      },
+    },
+  })
   @UsePipes(new ZodValidationPipe(CreateTaskSchema))
   async create(@Body() dto: CreateTaskDto, @CurrentUser('id') userId: string) {
     return this.tasksService.create(dto, userId);

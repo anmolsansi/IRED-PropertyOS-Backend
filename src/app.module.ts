@@ -1,5 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ConfigService } from '@nestjs/config';
 import { AppConfigModule } from './config/config.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -31,10 +32,13 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { SiteVisitsModule } from './modules/site-visits/site-visits.module';
 import { DealsModule } from './modules/deals/deals.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { MonitoringModule } from './modules/monitoring/monitoring.module';
 
 @Module({
   imports: [
     AppConfigModule,
+    ScheduleModule.forRoot(),
 
     ThrottlerModule.forRootAsync({
       imports: [AppConfigModule],
@@ -75,6 +79,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     SiteVisitsModule,
     DealsModule,
     NotificationsModule,
+    AuditModule,
+    MonitoringModule,
   ],
 })
 export class AppModule implements NestModule {

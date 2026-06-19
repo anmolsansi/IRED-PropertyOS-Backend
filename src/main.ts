@@ -31,6 +31,7 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      forbidUnknownValues: true,
     }),
   );
 
@@ -74,6 +75,7 @@ async function bootstrap() {
       .addTag('exports', 'Data export')
       .addTag('map', 'Geographic map queries')
       .addTag('notifications', 'Notification queue management')
+      .addTag('audit', 'Audit event logs')
       .build();
 
     const documentFactory = () => SwaggerModule.createDocument(app, config);

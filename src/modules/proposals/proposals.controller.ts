@@ -10,7 +10,7 @@ import {
   UseGuards,
   UsePipes,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth, ApiResponse } from '@nestjs/swagger';
 import { Response } from 'express';
 import { ProposalsService } from './proposals.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
@@ -31,6 +31,26 @@ export class ProposalsController {
 
   @Get()
   @ApiOperation({ summary: 'List all proposals' })
+  @ApiResponse({
+    status: 200,
+    description: 'Paginated list of proposals',
+    schema: {
+      example: {
+        data: [
+          {
+            id: 'p1e42c00-1234-4567-8901-abcdef123456',
+            title: null,
+            status: 'draft',
+            unitIds: ['unit-id-1', 'unit-id-2'],
+            client: { name: 'Acme Corp' },
+            creator: { fullName: 'System Admin' },
+            createdAt: '2025-01-15T10:30:00.000Z',
+          },
+        ],
+        meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+      },
+    },
+  })
   async findAll(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -41,12 +61,47 @@ export class ProposalsController {
 
   @Get(':id')
   @ApiOperation({ summary: 'Get proposal by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Proposal with client details',
+    schema: {
+      example: {
+        id: 'p1e42c00-1234-4567-8901-abcdef123456',
+        title: null,
+        status: 'draft',
+        unitIds: ['unit-id-1', 'unit-id-2'],
+        notes: 'Preferred locations: BKC, Lower Parel',
+        client: {
+          id: 'client-id',
+          name: 'Acme Corp',
+          company: 'Acme Corporation Pvt Ltd',
+          email: 'contact@acme.com',
+        },
+        creator: { id: 'user-id', fullName: 'System Admin' },
+        createdAt: '2025-01-15T10:30:00.000Z',
+      },
+    },
+  })
   async findOne(@Param('id') id: string) {
     return this.proposalsService.findOne(id);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create a proposal for a client' })
+  @ApiResponse({
+    status: 201,
+    description: 'Proposal created',
+    schema: {
+      example: {
+        id: 'p1e42c00-1234-4567-8901-abcdef123456',
+        clientId: 'client-id',
+        unitIds: ['unit-id-1', 'unit-id-2'],
+        status: 'draft',
+        createdBy: 'user-id',
+        createdAt: '2025-01-15T10:30:00.000Z',
+      },
+    },
+  })
   @UsePipes(new ZodValidationPipe(CreateProposalSchema))
   async create(
     @Body() dto: CreateProposalDto,
@@ -57,6 +112,7 @@ export class ProposalsController {
 
   @Post(':id/generate-pdf')
   @ApiOperation({ summary: 'Generate PDF for a proposal' })
+  @ApiResponse({ status: 200, description: 'PDF file download' })
   async generatePdf(
     @Param('id') id: string,
     @Res() res: Response,
@@ -73,6 +129,7 @@ export class ProposalsController {
   @Patch(':id/status')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update proposal status (Admin only)' })
+  @ApiResponse({ status: 200, description: 'Proposal status updated' })
   async updateStatus(
     @Param('id') id: string,
     @Body('status') status: string,

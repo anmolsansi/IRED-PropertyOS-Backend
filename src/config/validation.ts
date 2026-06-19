@@ -46,6 +46,8 @@ const envSchema = z.object({
   PUSH_PROVIDER: z.enum(['console', 'fcm']).default('console'),
   PUSH_FCM_SERVER_KEY: z.string().optional(),
 
+  ENCRYPTION_KEY: z.string().optional(),
+
   LOG_LEVEL: z.enum(['error', 'warn', 'log', 'debug', 'verbose']).default('log'),
 
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
