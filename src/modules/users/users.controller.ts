@@ -7,12 +7,26 @@ import {
   Body,
   Query,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import {
+  InviteUserSchema,
+  UpdateUserStatusSchema,
+  AssignGeographicScopeSchema,
+  ReassignUnitsSchema,
+  UserQuerySchema,
+  InviteUserDto,
+  UpdateUserStatusDto,
+  AssignGeographicScopeDto,
+  ReassignUnitsDto,
+  UserQueryDto,
+} from './dto/users.schema';
 
 @ApiTags('users')
 @ApiBearerAuth('access-token')
@@ -24,14 +38,9 @@ export class UsersController {
   @Get()
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'List all users (Admin only)' })
-  async findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('role') role?: string,
-    @Query('status') status?: string,
-    @Query('search') search?: string,
-  ) {
-    return this.usersService.findAll({ page, limit, role, status, search });
+  @UsePipes(new ZodValidationPipe(UserQuerySchema))
+  async findAll(@Query() query: UserQueryDto) {
+    return this.usersService.findAll(query);
   }
 
   @Get(':id')
@@ -43,55 +52,39 @@ export class UsersController {
   @Post('invite')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Invite a new worker (Admin only)' })
-  async invite(
-    @Body()
-    body: {
-      email: string;
-      fullName: string;
-      mobileNumber?: string;
-      role: Role;
-      stateIds?: string[];
-      cityIds?: string[];
-    },
-  ) {
-    return this.usersService.invite(body);
+  @UsePipes(new ZodValidationPipe(InviteUserSchema))
+  async invite(@Body() dto: InviteUserDto) {
+    return this.usersService.invite(dto);
   }
 
   @Patch(':id/status')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update user status (Admin only)' })
+  @UsePipes(new ZodValidationPipe(UpdateUserStatusSchema))
   async updateStatus(
     @Param('id') id: string,
-    @Body() body: { status: 'active' | 'inactive' | 'suspended' },
+    @Body() dto: UpdateUserStatusDto,
   ) {
-    return this.usersService.updateStatus(id, body.status);
+    return this.usersService.updateStatus(id, dto.status);
   }
 
   @Post(':id/geographic-assignments')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Assign geographic scope to a worker (Admin only)' })
+  @UsePipes(new ZodValidationPipe(AssignGeographicScopeSchema))
   async assignGeographicScope(
     @Param('id') id: string,
-    @Body()
-    body: {
-      assignments: {
-        assignmentType: 'state' | 'city' | 'locality';
-        stateId?: string;
-        cityId?: string;
-        localityId?: string;
-      }[];
-    },
+    @Body() dto: AssignGeographicScopeDto,
   ) {
-    return this.usersService.assignGeographicScope(id, body.assignments);
+    return this.usersService.assignGeographicScope(id, dto.assignments);
   }
 
   @Post('reassign-units')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Reassign units from one worker to another (Admin only)' })
-  async reassignUnits(
-    @Body() body: { fromWorkerId: string; toWorkerId: string },
-  ) {
-    return this.usersService.reassignUnits(body.fromWorkerId, body.toWorkerId);
+  @UsePipes(new ZodValidationPipe(ReassignUnitsSchema))
+  async reassignUnits(@Body() dto: ReassignUnitsDto) {
+    return this.usersService.reassignUnits(dto.fromWorkerId, dto.toWorkerId);
   }
 
   @Post(':id/reset-password')

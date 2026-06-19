@@ -1,9 +1,15 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
+import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
+import { NotificationsGateway } from './gateway/notifications.gateway';
 import { EmailWorker } from './workers/email.worker';
+import { SmsWorker } from './workers/sms.worker';
+import { PushWorker } from './workers/push.worker';
+import { SmsService } from './services/sms.service';
+import { PushService } from './services/push.service';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { MailModule } from '../email/mail.module';
 
@@ -11,6 +17,14 @@ import { MailModule } from '../email/mail.module';
   imports: [
     PrismaModule,
     MailModule,
+    JwtModule.registerAsync({
+      imports: [],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('app.jwt.accessSecret'),
+        signOptions: { expiresIn: '15m' },
+      }),
+    }),
     BullModule.forRootAsync({
       imports: [],
       inject: [ConfigService],
@@ -29,7 +43,7 @@ import { MailModule } from '../email/mail.module';
     ),
   ],
   controllers: [NotificationsController],
-  providers: [NotificationsService, EmailWorker],
-  exports: [NotificationsService],
+  providers: [NotificationsService, NotificationsGateway, EmailWorker, SmsWorker, PushWorker, SmsService, PushService],
+  exports: [NotificationsService, NotificationsGateway],
 })
 export class NotificationsModule {}

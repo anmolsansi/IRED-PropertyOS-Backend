@@ -18,8 +18,7 @@ export class EmailWorker extends WorkerHost {
 
     try {
       const html = this.renderTemplate(template, data);
-      await this.mailService['transporter']?.sendMail({
-        from: 'noreply@propertyos.in',
+      await this.mailService.sendMail({
         to,
         subject,
         html,

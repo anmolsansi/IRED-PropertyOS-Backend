@@ -128,4 +128,22 @@ export class DealsService {
       data: { status: 'paid', paidAt: new Date() },
     });
   }
+
+  async softDelete(id: string) {
+    const deal = await this.prisma.deal.findUnique({ where: { id } });
+    if (!deal) throw new NotFoundException('Deal not found');
+    return this.prisma.deal.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+  }
+
+  async restore(id: string) {
+    const deal = await this.prisma.deal.findUnique({ where: { id } });
+    if (!deal) throw new NotFoundException('Deal not found');
+    return this.prisma.deal.update({
+      where: { id },
+      data: { deletedAt: null },
+    });
+  }
 }

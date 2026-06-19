@@ -3,15 +3,29 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { SiteVisitsService } from './site-visits.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
+import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import {
+  CreateSiteVisitSchema,
+  UpdateSiteVisitSchema,
+  SiteVisitQuerySchema,
+  CompleteSiteVisitSchema,
+  CreateSiteVisitDto,
+  UpdateSiteVisitDto,
+  SiteVisitQueryDto,
+  CompleteSiteVisitDto,
+} from './dto/site-visits.schema';
 
 @ApiTags('site-visits')
 @ApiBearerAuth('access-token')
@@ -22,17 +36,9 @@ export class SiteVisitsController {
 
   @Get()
   @ApiOperation({ summary: 'List site visits' })
-  async findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('scheduledDate') scheduledDate?: string,
-    @Query('assignedTo') assignedTo?: string,
-    @Query('status') status?: string,
-    @Query('clientId') clientId?: string,
-  ) {
-    return this.siteVisitsService.findAll({
-      page, limit, scheduledDate, assignedTo, status, clientId,
-    });
+  @UsePipes(new ZodValidationPipe(SiteVisitQuerySchema))
+  async findAll(@Query() query: SiteVisitQueryDto) {
+    return this.siteVisitsService.findAll(query);
   }
 
   @Get(':id')
@@ -43,28 +49,45 @@ export class SiteVisitsController {
 
   @Post()
   @ApiOperation({ summary: 'Schedule a new site visit' })
-  async create(@Body() body: any, @CurrentUser('id') userId: string) {
-    return this.siteVisitsService.create(body, userId);
+  @UsePipes(new ZodValidationPipe(CreateSiteVisitSchema))
+  async create(@Body() dto: CreateSiteVisitDto, @CurrentUser('id') userId: string) {
+    return this.siteVisitsService.create(dto, userId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a site visit' })
-  async update(@Param('id') id: string, @Body() body: any) {
-    return this.siteVisitsService.update(id, body);
+  @UsePipes(new ZodValidationPipe(UpdateSiteVisitSchema))
+  async update(@Param('id') id: string, @Body() dto: UpdateSiteVisitDto) {
+    return this.siteVisitsService.update(id, dto);
   }
 
   @Post(':id/complete')
   @ApiOperation({ summary: 'Mark site visit as completed' })
+  @UsePipes(new ZodValidationPipe(CompleteSiteVisitSchema))
   async complete(
     @Param('id') id: string,
-    @Body() body: { notes?: string },
+    @Body() dto: CompleteSiteVisitDto,
   ) {
-    return this.siteVisitsService.complete(id, body.notes);
+    return this.siteVisitsService.complete(id, dto.notes);
   }
 
   @Post(':id/cancel')
   @ApiOperation({ summary: 'Cancel a site visit' })
   async cancel(@Param('id') id: string) {
     return this.siteVisitsService.cancel(id);
+  }
+
+  @Delete(':id')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Soft delete a site visit (Admin only)' })
+  async softDelete(@Param('id') id: string) {
+    return this.siteVisitsService.softDelete(id);
+  }
+
+  @Post(':id/restore')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Restore a soft-deleted site visit (Admin only)' })
+  async restore(@Param('id') id: string) {
+    return this.siteVisitsService.restore(id);
   }
 }

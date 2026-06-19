@@ -3,9 +3,14 @@ import { VersioningType, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './shared/filters/http-exception.filter';
+import { VersionHeaderInterceptor } from './shared/interceptors/version-header.interceptor';
+import { createLoggerFactory } from './shared/logger/json.logger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: createLoggerFactory(process.env.APP_ENV || 'development')(),
+  });
 
   const configService = app.get(ConfigService);
 
@@ -28,6 +33,9 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalInterceptors(new VersionHeaderInterceptor());
 
   if (configService.get<string>('app.env') !== 'production') {
     const config = new DocumentBuilder()
@@ -57,6 +65,15 @@ async function bootstrap() {
       .addTag('search', 'Property search')
       .addTag('dashboard', 'Dashboard metrics')
       .addTag('health', 'Health checks')
+      .addTag('deals', 'Deal pipeline and commissions')
+      .addTag('clients', 'Client management and requirements')
+      .addTag('proposals', 'Proposal generation and PDF export')
+      .addTag('tasks', 'Task management and follow-ups')
+      .addTag('site-visits', 'Site visit scheduling')
+      .addTag('imports', 'CSV data import')
+      .addTag('exports', 'Data export')
+      .addTag('map', 'Geographic map queries')
+      .addTag('notifications', 'Notification queue management')
       .build();
 
     const documentFactory = () => SwaggerModule.createDocument(app, config);

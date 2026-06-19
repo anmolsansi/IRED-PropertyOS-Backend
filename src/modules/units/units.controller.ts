@@ -8,12 +8,22 @@ import {
   Body,
   Query,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UnitsService } from './units.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import {
+  CreateUnitSchema,
+  UpdateUnitSchema,
+  UnitQuerySchema,
+  CreateUnitDto,
+  UpdateUnitDto,
+  UnitQueryDto,
+} from './dto/units.schema';
 
 @ApiTags('units')
 @ApiBearerAuth('access-token')
@@ -24,22 +34,9 @@ export class UnitsController {
 
   @Get()
   @ApiOperation({ summary: 'List units with filters' })
-  async findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('buildingId') buildingId?: string,
-    @Query('floorId') floorId?: string,
-    @Query('availabilityStatusId') availabilityStatusId?: string,
-    @Query('search') search?: string,
-  ) {
-    return this.unitsService.findAll({
-      page,
-      limit,
-      buildingId,
-      floorId,
-      availabilityStatusId,
-      search,
-    });
+  @UsePipes(new ZodValidationPipe(UnitQuerySchema))
+  async findAll(@Query() query: UnitQueryDto) {
+    return this.unitsService.findAll(query);
   }
 
   @Get(':id')
@@ -50,19 +47,21 @@ export class UnitsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new unit' })
-  async create(@Body() body: any, @CurrentUser('id') userId: string) {
-    return this.unitsService.create(body, userId);
+  @UsePipes(new ZodValidationPipe(CreateUnitSchema))
+  async create(@Body() dto: CreateUnitDto, @CurrentUser('id') userId: string) {
+    return this.unitsService.create(dto, userId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a unit' })
+  @UsePipes(new ZodValidationPipe(UpdateUnitSchema))
   async update(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() dto: UpdateUnitDto,
     @CurrentUser('id') userId: string,
     @CurrentUser('role') userRole: string,
   ) {
-    return this.unitsService.update(id, body, userId, userRole === Role.ADMIN);
+    return this.unitsService.update(id, dto, userId, userRole === Role.ADMIN);
   }
 
   @Delete(':id')

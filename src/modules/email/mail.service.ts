@@ -66,6 +66,22 @@ export class MailService implements OnModuleInit {
     this.logger.log(`OTP email sent to ${to} (${purpose})`);
   }
 
+  async sendMail(options: {
+    from?: string;
+    to: string;
+    subject: string;
+    html: string;
+  }): Promise<void> {
+    if (!this.isConfigured || !this.transporter) {
+      this.logger.log(`[DEV MODE] Email to ${options.to}: ${options.subject}`);
+      return;
+    }
+
+    const from = options.from || this.config.get<string>('app.smtp.from') || 'noreply@propertyos.in';
+    await this.transporter.sendMail({ ...options, from });
+    this.logger.log(`Email sent to ${options.to}: ${options.subject}`);
+  }
+
   private buildOtpHtml(
     otp: string,
     purpose: 'EMAIL_VERIFICATION' | 'PASSWORD_RESET' | 'MOBILE_RECOVERY',

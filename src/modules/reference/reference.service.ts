@@ -74,4 +74,25 @@ export class ReferenceService {
       orderBy: { name: 'asc' },
     });
   }
+
+  async findAllSources() {
+    return this.prisma.source.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findAllZones() {
+    return this.prisma.zone.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async findZonesByCity(cityId: string) {
+    return this.prisma.zone.findMany({
+      where: { cityId, active: true },
+      orderBy: { name: 'asc' },
+    });
+  }
 }

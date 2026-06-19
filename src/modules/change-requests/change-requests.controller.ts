@@ -7,12 +7,24 @@ import {
   Body,
   Query,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { ChangeRequestsService } from './change-requests.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import {
+  ChangeRequestQuerySchema,
+  ApproveItemsSchema,
+  RejectItemsSchema,
+  ResolveConflictSchema,
+  ChangeRequestQueryDto,
+  ApproveItemsDto,
+  RejectItemsDto,
+  ResolveConflictDto,
+} from './dto/change-requests.schema';
 
 @ApiTags('change-requests')
 @ApiBearerAuth('access-token')
@@ -25,20 +37,9 @@ export class ChangeRequestsController {
 
   @Get()
   @ApiOperation({ summary: 'List change requests' })
-  async findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('status') status?: string,
-    @Query('entityType') entityType?: string,
-    @Query('cityId') cityId?: string,
-  ) {
-    return this.changeRequestsService.findAll({
-      page,
-      limit,
-      status,
-      entityType,
-      cityId,
-    });
+  @UsePipes(new ZodValidationPipe(ChangeRequestQuerySchema))
+  async findAll(@Query() query: ChangeRequestQueryDto) {
+    return this.changeRequestsService.findAll(query);
   }
 
   @Get(':id')
@@ -59,47 +60,40 @@ export class ChangeRequestsController {
   @Post(':id/approve-items')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Approve selected items in a change request' })
+  @UsePipes(new ZodValidationPipe(ApproveItemsSchema))
   async approveItems(
     @Param('id') id: string,
-    @Body()
-    body: {
-      items: { changeItemId: string; finalValue: string; comment?: string }[];
-    },
+    @Body() dto: ApproveItemsDto,
     @CurrentUser('id') adminId: string,
   ) {
-    return this.changeRequestsService.approveItems(id, body.items, adminId);
+    return this.changeRequestsService.approveItems(id, dto.items, adminId);
   }
 
   @Post(':id/reject-items')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Reject selected items in a change request' })
+  @UsePipes(new ZodValidationPipe(RejectItemsSchema))
   async rejectItems(
     @Param('id') id: string,
-    @Body()
-    body: {
-      items: { changeItemId: string; comment: string }[];
-    },
+    @Body() dto: RejectItemsDto,
     @CurrentUser('id') adminId: string,
   ) {
-    return this.changeRequestsService.rejectItems(id, body.items, adminId);
+    return this.changeRequestsService.rejectItems(id, dto.items, adminId);
   }
 
   @Post(':id/resolve-conflict')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Resolve a conflict in a change request' })
+  @UsePipes(new ZodValidationPipe(ResolveConflictSchema))
   async resolveConflict(
     @Param('id') id: string,
-    @Body()
-    body: {
-      changeItemId: string;
-      finalValue: string;
-    },
+    @Body() dto: ResolveConflictDto,
     @CurrentUser('id') adminId: string,
   ) {
     return this.changeRequestsService.resolveConflict(
       id,
-      body.changeItemId,
-      body.finalValue,
+      dto.changeItemId,
+      dto.finalValue,
       adminId,
     );
   }

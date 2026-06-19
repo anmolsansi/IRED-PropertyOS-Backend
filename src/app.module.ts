@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ConfigService } from '@nestjs/config';
 import { AppConfigModule } from './config/config.module';
@@ -6,6 +6,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { SharedModule } from './shared/shared.module';
 import { HealthModule } from './health/health.module';
 import { MailModule } from './modules/email/mail.module';
+import { RequestIdMiddleware } from './shared/middleware/request-id.middleware';
 
 // V1 Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -76,4 +77,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     NotificationsModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

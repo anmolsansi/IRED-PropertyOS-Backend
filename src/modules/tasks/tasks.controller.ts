@@ -3,15 +3,31 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { TasksService } from './tasks.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
+import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import {
+  CreateTaskSchema,
+  UpdateTaskSchema,
+  CreateFollowUpSchema,
+  UpdateFollowUpSchema,
+  TaskQuerySchema,
+  CreateTaskDto,
+  UpdateTaskDto,
+  CreateFollowUpDto,
+  UpdateFollowUpDto,
+  TaskQueryDto,
+} from './dto/tasks.schema';
 
 @ApiTags('tasks')
 @ApiBearerAuth('access-token')
@@ -22,18 +38,9 @@ export class TasksController {
 
   @Get()
   @ApiOperation({ summary: 'List tasks' })
-  async findAll(
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
-    @Query('assignedTo') assignedTo?: string,
-    @Query('status') status?: string,
-    @Query('type') type?: string,
-    @Query('buildingId') buildingId?: string,
-    @Query('clientId') clientId?: string,
-  ) {
-    return this.tasksService.findAll({
-      page, limit, assignedTo, status, type, buildingId, clientId,
-    });
+  @UsePipes(new ZodValidationPipe(TaskQuerySchema))
+  async findAll(@Query() query: TaskQueryDto) {
+    return this.tasksService.findAll(query);
   }
 
   @Get(':id')
@@ -44,24 +51,27 @@ export class TasksController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new task' })
-  async create(@Body() body: any, @CurrentUser('id') userId: string) {
-    return this.tasksService.create(body, userId);
+  @UsePipes(new ZodValidationPipe(CreateTaskSchema))
+  async create(@Body() dto: CreateTaskDto, @CurrentUser('id') userId: string) {
+    return this.tasksService.create(dto, userId);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update a task' })
-  async update(@Param('id') id: string, @Body() body: any) {
-    return this.tasksService.update(id, body);
+  @UsePipes(new ZodValidationPipe(UpdateTaskSchema))
+  async update(@Param('id') id: string, @Body() dto: UpdateTaskDto) {
+    return this.tasksService.update(id, dto);
   }
 
   @Post(':id/follow-ups')
   @ApiOperation({ summary: 'Add follow-up to a task' })
+  @UsePipes(new ZodValidationPipe(CreateFollowUpSchema))
   async addFollowUp(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() dto: CreateFollowUpDto,
     @CurrentUser('id') userId: string,
   ) {
-    return this.tasksService.addFollowUp(id, body, userId);
+    return this.tasksService.addFollowUp(id, dto, userId);
   }
 
   @Get(':id/follow-ups')
@@ -72,10 +82,25 @@ export class TasksController {
 
   @Patch('follow-ups/:followUpId')
   @ApiOperation({ summary: 'Update a follow-up' })
+  @UsePipes(new ZodValidationPipe(UpdateFollowUpSchema))
   async updateFollowUp(
     @Param('followUpId') followUpId: string,
-    @Body() body: any,
+    @Body() dto: UpdateFollowUpDto,
   ) {
-    return this.tasksService.updateFollowUp(followUpId, body);
+    return this.tasksService.updateFollowUp(followUpId, dto);
+  }
+
+  @Delete(':id')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Soft delete a task (Admin only)' })
+  async softDelete(@Param('id') id: string) {
+    return this.tasksService.softDelete(id);
+  }
+
+  @Post(':id/restore')
+  @Roles(Role.ADMIN)
+  @ApiOperation({ summary: 'Restore a soft-deleted task (Admin only)' })
+  async restore(@Param('id') id: string) {
+    return this.tasksService.restore(id);
   }
 }

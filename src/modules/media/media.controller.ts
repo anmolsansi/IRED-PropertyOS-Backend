@@ -8,13 +8,24 @@ import {
   Body,
   Query,
   UseGuards,
+  UsePipes,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { MediaService } from './media.service';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
 import { Roles, Role } from '../../shared/decorators/roles.decorator';
 import { CurrentUser } from '../../shared/decorators/current-user.decorator';
-import { FileType } from '../../generated/prisma';
+import { ZodValidationPipe } from '../../shared/pipes/zod-validation.pipe';
+import {
+  GetUploadUrlSchema,
+  CompleteUploadSchema,
+  UpdateMediaSchema,
+  MediaQuerySchema,
+  GetUploadUrlDto,
+  CompleteUploadDto,
+  UpdateMediaDto,
+  MediaQueryDto,
+} from './dto/media.schema';
 
 @ApiTags('media')
 @ApiBearerAuth('access-token')
@@ -25,15 +36,12 @@ export class MediaController {
 
   @Get()
   @ApiOperation({ summary: 'List media files' })
-  async findAll(
-    @Query('buildingId') buildingId?: string,
-    @Query('floorId') floorId?: string,
-    @Query('unitId') unitId?: string,
-  ) {
-    if (buildingId) return this.mediaService.findByBuilding(buildingId);
-    if (floorId) return this.mediaService.findByFloor(floorId);
-    if (unitId) return this.mediaService.findByUnit(unitId);
-    return [];
+  @UsePipes(new ZodValidationPipe(MediaQuerySchema))
+  async findAll(@Query() query: MediaQueryDto) {
+    if (query.buildingId) return this.mediaService.findByBuilding(query.buildingId);
+    if (query.floorId) return this.mediaService.findByFloor(query.floorId);
+    if (query.unitId) return this.mediaService.findByUnit(query.unitId);
+    return this.mediaService.findAll({ page: query.page, limit: query.limit, fileType: query.fileType });
   }
 
   @Get(':id')
@@ -50,37 +58,24 @@ export class MediaController {
 
   @Post('upload-url')
   @ApiOperation({ summary: 'Get presigned upload URL' })
-  async getUploadUrl(
-    @Body()
-    body: {
-      fileName: string;
-      mimeType: string;
-      fileType: FileType;
-      buildingId?: string;
-      floorId?: string;
-      unitId?: string;
-      documentCategoryId?: string;
-    },
-  ) {
-    return this.mediaService.getUploadUrl(body);
+  @UsePipes(new ZodValidationPipe(GetUploadUrlSchema))
+  async getUploadUrl(@Body() dto: GetUploadUrlDto) {
+    return this.mediaService.getUploadUrl(dto);
   }
 
   @Post('complete-upload')
   @ApiOperation({ summary: 'Mark upload as complete' })
-  async completeUpload(
-    @Body() body: { mediaId: string; fileSizeBytes?: number },
-  ) {
-    return this.mediaService.completeUpload(body.mediaId, body.fileSizeBytes);
+  @UsePipes(new ZodValidationPipe(CompleteUploadSchema))
+  async completeUpload(@Body() dto: CompleteUploadDto) {
+    return this.mediaService.completeUpload(dto.mediaId, dto.fileSizeBytes);
   }
 
   @Patch(':id')
   @Roles(Role.ADMIN)
   @ApiOperation({ summary: 'Update media metadata (Admin only)' })
-  async update(
-    @Param('id') id: string,
-    @Body() body: { documentCategoryId?: string; notes?: string },
-  ) {
-    return this.mediaService.updateMetadata(id, body);
+  @UsePipes(new ZodValidationPipe(UpdateMediaSchema))
+  async update(@Param('id') id: string, @Body() dto: UpdateMediaDto) {
+    return this.mediaService.updateMetadata(id, dto);
   }
 
   @Delete(':id')
