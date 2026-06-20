@@ -183,7 +183,9 @@ src/
     ├── exports/               # Data export
     ├── map/                   # Geographic queries
     ├── notifications/         # Email/SMS/push queues + WebSocket
-    └── email/                 # SMTP mail service
+    ├── email/                 # SMTP mail service
+    ├── audit/                 # Audit event query (admin-only)
+    └── monitoring/            # System metrics + export scheduler
 ```
 
 ## License
