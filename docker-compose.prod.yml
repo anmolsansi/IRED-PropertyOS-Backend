@@ -31,8 +31,9 @@ services:
       DATABASE_URL: postgresql://propertyos:propertyos@postgres:5432/propertyos
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      JWT_EXPIRY: ${JWT_EXPIRY:-15m}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-change-me-in-production-access}
+      JWT_ACCESS_EXPIRY: ${JWT_ACCESS_EXPIRY:-15m}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-change-me-in-production-refresh}
       JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
       SMS_PROVIDER: ${SMS_PROVIDER:-console}
       SMS_API_KEY: ${SMS_API_KEY:-}
@@ -40,15 +41,23 @@ services:
       SMS_SENDER_ID: ${SMS_SENDER_ID:-PROPERTYOS}
       PUSH_PROVIDER: ${PUSH_PROVIDER:-console}
       PUSH_FCM_SERVER_KEY: ${PUSH_FCM_SERVER_KEY:-}
-      MAIL_HOST: ${MAIL_HOST:-}
-      MAIL_PORT: ${MAIL_PORT:-587}
-      MAIL_USER: ${MAIL_USER:-}
-      MAIL_PASS: ${MAIL_PASS:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@propertyos.in}
       APP_NAME: IRED-PropertyOS
       APP_PORT: 3000
-      APP_CORS_ORIGIN: ${APP_CORS_ORIGIN:-http://localhost:3000}
-      THROTTLER_TTL: 60000
-      THROTTLER_LIMIT: 60
+      S3_ENDPOINT: ${S3_ENDPOINT:-minio}
+      S3_BUCKET: ${S3_BUCKET:-propertyos-media}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-minioadmin}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-minioadmin}
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      THROTTLE_TTL: ${THROTTLE_TTL:-60000}
+      THROTTLE_LIMIT: ${THROTTLE_LIMIT:-60}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy

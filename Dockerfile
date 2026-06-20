@@ -39,7 +39,7 @@ RUN addgroup -g 1001 -S propertyos && \
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=prisma /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/src/generated ./src/generated
+COPY --from=build /app/src/generated ./dist/generated
 COPY prisma ./prisma
 
 ENV NODE_ENV=production
